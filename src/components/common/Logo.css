@@ -1,0 +1,29 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+}
+
+.logo__image {
+  display: block;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo--small .logo__image {
+  width: 128px;
+}
+
+.logo--medium .logo__image {
+  width: 210px;
+}
+
+.logo--large .logo__image {
+  width: 330px;
+}
+
+@media (max-width: 720px) {
+  .logo--small .logo__image {
+    width: 110px;
+  }
+}

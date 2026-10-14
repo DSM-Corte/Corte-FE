@@ -1,0 +1,594 @@
+:root[data-theme="dark"] {
+  --dark-page: #020617;
+  --dark-surface: #0f172a;
+  --dark-surface-elevated: #111827;
+  --dark-surface-soft: #1e293b;
+  --dark-border: #334155;
+  --dark-border-soft: #1f2937;
+  --dark-text: #f8fafc;
+  --dark-text-soft: #e5e7eb;
+  --dark-muted: #94a3b8;
+  --dark-primary-soft: rgba(88, 166, 255, 0.16);
+  --dark-success-soft: rgba(52, 211, 153, 0.16);
+  --dark-danger-soft: rgba(248, 113, 113, 0.16);
+}
+
+:root[data-theme="dark"] body {
+  background: var(--dark-page);
+  color: var(--dark-text-soft);
+}
+
+:root[data-theme="dark"] :where(
+  .auth-shell,
+  .main-page,
+  .community-list-page,
+  .community-write-page,
+  .community-post-page,
+  .community-post-state,
+  .problem-shell,
+  .problem-sets-page,
+  .problem-sets-state,
+  .problem-detail,
+  .problem-detail-state,
+  .submit-page,
+  .submit-state,
+  .submission-history,
+  .submission-detail,
+  .submission-state,
+  .mypage,
+  .mypage-state,
+  .code-review-page,
+  .code-review-detail-page,
+  .code-review-state
+) {
+  background: var(--dark-page);
+  color: var(--dark-text-soft);
+}
+
+:root[data-theme="dark"] :where(
+  .community-write-hero,
+  .mypage__hero,
+  .problem-detail__bar,
+  .problem-detail__hero,
+  .submit-header,
+  .submission-history__bar,
+  .submission-summary
+) {
+  border-color: var(--dark-border-soft);
+  background: var(--dark-surface);
+}
+
+:root[data-theme="dark"] :where(
+  .auth-card,
+  .auth-social.button,
+  .main-hero__panel,
+  .main-quick-card,
+  .main-section,
+  .community-search,
+  .community-sort__select,
+  .community-type-tabs button,
+  .community-filter-context,
+  .community-table,
+  .community-pagination__controls button,
+  .community-title-field input,
+  .community-write-meta-fields select,
+  .community-problem-search__input,
+  .community-problem-results,
+  .community-selected-problem button,
+  .board-editor-toolbar,
+  .board-editor-view-toggle,
+  .board-editor-view-toggle button.is-active,
+  .community-editor-grid,
+  .community-editor-pane--write,
+  .community-editor-pane--write textarea,
+  .community-editor-pane--preview,
+  .markdown-preview__image,
+  .code-run-modal__panel,
+  .problem-filter,
+  .problem-filter__expand,
+  .filter-search,
+  .problem-search,
+  .tag-select__menu,
+  .tag-select__search input,
+  .tag-chip,
+  .tag-chip button,
+  .range-inputs input,
+  .problem-table,
+  .problem-pagination__button,
+  .problem-pagination__size,
+  .problem-sort .input,
+  .problem-set-card,
+  .problem-sets-empty,
+  .problem-set-create-card,
+  .problem-set-picker,
+  .problem-set-picker-list button,
+  .problem-set-create-card textarea,
+  .example-card,
+  .example-field,
+  .example-field__header,
+  .example-copy,
+  .problem-detail__pill,
+  .problem-detail__tier,
+  .problem-detail__side section,
+  .detail-tag-list a,
+  .submit-editor-panel,
+  .submit-result-panel section,
+  .runner-panel,
+  .runner-panel__tabs,
+  .runner-panel__tab.is-active,
+  .example-run-panel,
+  .example-run-item,
+  .submit-modal__dialog,
+  .submit-modal__stats div,
+  .submission-table,
+  .submission-language,
+  .submission-detail__code-card,
+  .submission-detail__metric-card,
+  .submission-detail__test-card,
+  .submission-detail__test,
+  .mypage-stat-card,
+  .mypage-grass-card,
+  .mypage-grass-legend__item,
+  .mypage-language-strip span,
+  .leaderboard-search,
+  .leaderboard-table,
+  .code-review-list-head,
+  .code-review-problem-search__input,
+  .code-review-problem-results,
+  .code-review-selected-problem,
+  .code-review-selected-problem button,
+  .code-review-list-item,
+  .code-review-empty,
+  .code-review-create-card,
+  .code-review-submission-preview,
+  .review-info-card,
+  .review-comment-form,
+  .review-suggestion-form,
+  .review-suggestion-card,
+  .review-suggestion-loading,
+  .review-suggestion-author,
+  .review-inline-comment-form,
+  .review-inline-markdown-preview
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface-elevated);
+  color: var(--dark-text-soft);
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.28);
+}
+
+:root[data-theme="dark"] :where(
+  .main-hero__actions a:last-child,
+  .community-search button,
+  .community-type-tabs button.is-active,
+  .community-table__row--head,
+  .community-pagination__controls button:hover:not(:disabled),
+  .board-editor-tool:hover,
+  .problem-table__row--head,
+  .problem-pagination,
+  .tag-select__option:hover,
+  .tag-chip button:hover,
+  .problem-set-create-summary,
+  .problem-set-problems a:hover,
+  .problem-set-picker-list button:hover,
+  .problem-set-picker-list button.is-selected,
+  .detail-action-link:hover,
+  .example-field pre,
+  .submit-guide code,
+  .runner-panel__tab:hover,
+  .example-run-item,
+  .submission-table__row--head,
+  .submission-table__row:not(.submission-table__row--head):hover,
+  .submission-detail__code-head,
+  .submission-detail__test,
+  .mypage-grass__cell,
+  .leaderboard-table__row--head,
+  .leaderboard-table__row:not(.leaderboard-table__row--head):hover,
+  .code-review-problem-results button:hover:not(:disabled),
+  .code-review-list-item:hover,
+  .code-review-list-item small em,
+  .review-info-card--ai,
+  .review-suggestion-author,
+  .review-suggestion-loading__bar
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface-soft);
+  color: var(--dark-text-soft);
+}
+
+:root[data-theme="dark"] .main-hero__panel {
+  background:
+    linear-gradient(145deg, rgba(88, 166, 255, 0.18), rgba(17, 24, 39, 0.94)),
+    var(--dark-surface-elevated);
+}
+
+:root[data-theme="dark"] .community-editor-pane--preview {
+  background:
+    linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.94));
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="0"] {
+  border-color: rgba(51, 65, 85, 0.82);
+  background: rgba(15, 23, 42, 0.96);
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="1"] {
+  border-color: rgba(56, 189, 248, 0.24);
+  background: rgba(56, 189, 248, 0.16);
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="2"] {
+  border-color: rgba(56, 189, 248, 0.38);
+  background: rgba(56, 189, 248, 0.3);
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="3"] {
+  border-color: rgba(52, 211, 153, 0.42);
+  background: rgba(52, 211, 153, 0.36);
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="4"] {
+  border-color: rgba(52, 211, 153, 0.58);
+  background: rgba(52, 211, 153, 0.58);
+}
+
+:root[data-theme="dark"] .mypage-grass__cell[data-level="5"] {
+  border-color: rgba(110, 231, 183, 0.78);
+  background: #34d399;
+}
+
+:root[data-theme="dark"] :where(
+  input,
+  textarea,
+  select,
+  .input,
+  .code-review-create-card input,
+  .code-review-create-card textarea,
+  .review-comment-form select,
+  .review-comment-form textarea,
+  .review-suggestion-form input,
+  .review-suggestion-form textarea,
+  .code-suggestion-form-card input,
+  .code-suggestion-form-card textarea
+) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface);
+  color: var(--dark-text);
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] :where(input, textarea)::placeholder {
+  color: var(--dark-muted);
+}
+
+:root[data-theme="dark"] :where(
+  input,
+  textarea,
+  select,
+  .input,
+  .community-search,
+  .community-sort__select,
+  .community-title-field input,
+  .community-write-meta-fields select,
+  .community-problem-search__input,
+  .code-review-problem-search__input,
+  .filter-search,
+  .problem-search
+):focus,
+:root[data-theme="dark"] :where(
+  .community-search,
+  .community-sort__select,
+  .community-problem-search__input,
+  .code-review-problem-search__input,
+  .filter-search,
+  .problem-search
+):focus-within {
+  border-color: var(--color-primary);
+  background: var(--dark-surface);
+  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.18);
+}
+
+:root[data-theme="dark"] :where(.button--dark, .submission-actions button:last-child) {
+  border-color: var(--dark-border);
+  background: var(--dark-surface-soft);
+  color: var(--dark-text);
+}
+
+:root[data-theme="dark"] :where(.button--dark:hover:not(:disabled), .submission-actions button:last-child:hover) {
+  background: var(--dark-surface-elevated);
+}
+
+:root[data-theme="dark"] :where(
+  .auth-card__title,
+  .main-hero h1,
+  .main-hero__panel strong,
+  .main-quick-card strong,
+  .main-section__head h2,
+  .main-problem-row strong,
+  .main-post strong,
+  .community-list-hero h1,
+  .community-filter-context strong,
+  .community-table__title strong,
+  .community-table__author,
+  .community-table__problem strong,
+  .community-write-hero h1,
+  .markdown-preview h1,
+  .markdown-preview h2,
+  .markdown-preview h3,
+  .problem-filter h2,
+  .filter-section h3,
+  .problem-title strong,
+  .problem-set-card__head h2,
+  .problem-set-problems a strong,
+  .problem-set-create-card h2,
+  .problem-set-picker__head h2,
+  .problem-set-picker-list button strong,
+  .problem-detail__bar-title,
+  .problem-detail__hero h1,
+  .problem-detail__section h2,
+  .problem-detail__side h2,
+  .example-card h3,
+  .example-field__header h4,
+  .submit-header h1,
+  .submit-result-panel h2,
+  .example-run-panel__header h2,
+  .example-run-item__top,
+  .submit-modal__dialog h2,
+  .submission-history__bar h1,
+  .submission-summary h2,
+  .submission-table__row strong,
+  .submission-detail__code-head strong,
+  .submission-detail__metric-card strong,
+  .submission-detail__test-card h2,
+  .mypage__hero h1,
+  .mypage-stat-card strong,
+  .mypage-section-heading h2,
+  .mypage-language-strip strong,
+  .leaderboard-header h1,
+  .leaderboard-user strong,
+  .code-review-hero h1,
+  .code-review-list-head h2,
+  .code-review-list-item strong,
+  .review-detail-header h1,
+  .review-info-card h2,
+  .review-comment-form h2,
+  .review-section-heading h2,
+  .review-suggestion-form h3,
+  .review-suggestion-loading strong,
+  .review-suggestion-card__head strong
+) {
+  color: var(--dark-text);
+}
+
+:root[data-theme="dark"] :where(
+  .auth-card__description,
+  .auth-form__row,
+  .auth-switch,
+  .auth-footer,
+  .main-hero__content > p:last-of-type,
+  .main-hero__panel p,
+  .main-quick-card p,
+  .main-section__head p,
+  .main-empty,
+  .community-list-hero p:last-child,
+  .community-sort > span:first-child,
+  .community-table__number,
+  .community-table__date,
+  .community-table__title small,
+  .community-table__problem small,
+  .community-table__problem em,
+  .community-table__empty,
+  .community-write-hero p:last-child,
+  .community-title-field span,
+  .community-write-meta-fields span,
+  .community-problem-results p,
+  .community-problem-results small,
+  .markdown-preview--empty,
+  .markdown-preview blockquote,
+  .filter-section label,
+  .solver-labels,
+  .range-inputs span,
+  .problem-count,
+  .problem-number,
+  .problem-tags,
+  .problem-table__empty,
+  .problem-sets-hero p:last-child,
+  .problem-set-card > p,
+  .problem-set-card__head span,
+  .problem-set-card__meta,
+  .problem-set-problems a span,
+  .problem-set-create-card label,
+  .problem-set-create-summary span,
+  .problem-set-picker__head p,
+  .problem-set-picker__head > span,
+  .problem-set-selected-list p,
+  .problem-set-picker-list button > span,
+  .problem-set-picker-list button small,
+  .problem-detail__back,
+  .problem-detail__eyebrow,
+  .problem-detail__meta,
+  .problem-detail__summary,
+  .problem-detail__section p,
+  .constraint-list,
+  .detail-tag-list a,
+  .detail-status,
+  .submit-header__back,
+  .submit-header__meta,
+  .submit-guide p,
+  .submit-empty,
+  .submit-message,
+  .example-run-panel__empty,
+  .example-run-panel__message,
+  .example-run-item dt,
+  .example-run-item dd,
+  .submit-modal__eyebrow,
+  .submit-modal__message,
+  .submit-modal__stats dt,
+  .submission-history__back,
+  .submission-summary__eyebrow,
+  .submission-summary p:last-child,
+  .submission-table__number,
+  .submission-table__row small,
+  .submission-actions__disabled,
+  .submission-detail__code-head span,
+  .submission-detail__code-head small,
+  .submission-detail__metric-card span,
+  .submission-detail__test dt,
+  .mypage__eyebrow,
+  .mypage__hero p:last-child,
+  .mypage-stat-card span,
+  .mypage-stat-card p,
+  .mypage-section-heading p,
+  .mypage-grass-legend,
+  .mypage-language-strip span,
+  .leaderboard-header p:last-child,
+  .leaderboard-search > span,
+  .leaderboard-loading,
+  .leaderboard-table__empty,
+  .code-review-hero p:last-child,
+  .code-review-filter-label-row span,
+  .code-review-filter-label-row small,
+  .code-review-problem-results p,
+  .code-review-problem-results small,
+  .code-review-list-item p,
+  .code-review-list-item small,
+  .code-review-create-card label span,
+  .review-comment-form label span,
+  .review-detail-header p,
+  .review-info-card p,
+  .review-section-heading p,
+  .review-suggestion-loading p,
+  .review-suggestion-card__head p,
+  .review-suggestion-author span
+) {
+  color: var(--dark-muted);
+}
+
+:root[data-theme="dark"] :where(
+  .main-quick-card:hover,
+  .main-problem-row:hover,
+  .main-post:hover,
+  .community-table__row--link:hover,
+  .community-table__row--link:focus-visible,
+  .problem-table__row:not(.problem-table__row--head):hover,
+  .problem-set-problems a:hover,
+  .problem-set-picker-list button:hover,
+  .problem-set-picker-list button.is-selected,
+  .code-review-list-item:hover,
+  .leaderboard-table__row:not(.leaderboard-table__row--head):hover
+) {
+  border-color: rgba(88, 166, 255, 0.36);
+  background: var(--dark-surface-soft);
+}
+
+:root[data-theme="dark"] :where(
+  .community-type-tabs button.is-active,
+  .community-selected-problem,
+  .code-review-selected-problem,
+  .problem-set-card__head em,
+  .problem-set-selected-list button,
+  .leaderboard-table__row.is-current-user,
+  .review-status-pill,
+  .review-run-status,
+  .submission-detail__test span
+) {
+  border-color: rgba(88, 166, 255, 0.3);
+  background: var(--dark-primary-soft);
+  color: var(--color-primary);
+}
+
+:root[data-theme="dark"] :where(
+  .leaderboard-table__row.is-current-user:hover,
+  .community-selected-problem:hover,
+  .code-review-selected-problem:hover
+) {
+  background: rgba(88, 166, 255, 0.22);
+}
+
+:root[data-theme="dark"] :where(
+  .review-status-pill--closed,
+  .review-run-status.is-idle,
+  .submission-actions__disabled
+) {
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--dark-muted);
+}
+
+:root[data-theme="dark"] :where(
+  .review-run-status.is-success,
+  .detail-status.is-solved,
+  .submission-status.is-accepted,
+  .mypage-stat-card--success strong
+) {
+  background: var(--dark-success-soft);
+  color: var(--color-success);
+}
+
+:root[data-theme="dark"] :where(
+  .review-run-status.is-error,
+  .submission-status.is-failed,
+  .mypage-stat-card--error strong
+) {
+  background: var(--dark-danger-soft);
+  color: var(--color-error);
+}
+
+:root[data-theme="dark"] :where(
+  .detail-status.is-solved,
+  .submission-status.is-accepted,
+  .submission-status.is-failed,
+  .mypage-stat-card--success strong,
+  .mypage-stat-card--error strong
+) {
+  background: transparent;
+}
+
+:root[data-theme="dark"] .markdown-preview {
+  color: var(--dark-text-soft);
+}
+
+:root[data-theme="dark"] .markdown-preview code {
+  background: var(--dark-surface-soft);
+  color: var(--dark-text);
+}
+
+:root[data-theme="dark"] .markdown-preview blockquote {
+  border-color: var(--dark-border);
+}
+
+:root[data-theme="dark"] :where(
+  .community-editor-grid,
+  .community-table,
+  .problem-table,
+  .leaderboard-table,
+  .submission-table
+) {
+  box-shadow: 0 18px 52px rgba(0, 0, 0, 0.32);
+}
+
+:root[data-theme="dark"] :where(
+  .community-table__row,
+  .problem-table__row,
+  .leaderboard-table__row,
+  .submission-table__row,
+  .filter-section,
+  .problem-filter__top,
+  .board-editor-toolbar__group + .board-editor-toolbar__group,
+  .example-field__header,
+  .submit-toolbar,
+  .runner-panel__tabs,
+  .submission-detail__code-head
+) {
+  border-color: var(--dark-border-soft);
+}
+
+:root[data-theme="dark"] :where(
+  .review-code-card,
+  .review-diff,
+  .review-diff-page,
+  .terminal-window,
+  .submit-terminal,
+  .markdown-code-card,
+  .submission-detail__code
+) {
+  color-scheme: dark;
+}

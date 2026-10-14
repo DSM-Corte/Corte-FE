@@ -1,0 +1,17 @@
+.tier-display {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tier-display__name {
+  color: var(--color-ink);
+  font-weight: var(--font-weight-bold);
+}
+
+.tier-icon {
+  width: 30px;
+  height: 32px;
+  display: block;
+  object-fit: contain;
+}
