@@ -478,13 +478,3 @@ export async function getSubmissionList({ problemId } = {}) {
     (submission) => submission.problemId === Number(problemId),
   );
 }
-
-export async function getSubmissionById(id) {
-  await delay(100);
-
-  const userId = getCurrentUserId();
-
-  return getStoredSubmissions().find(
-    (submission) => submission.userId === userId && submission.id === id,
-  );
-}
