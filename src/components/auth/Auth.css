@@ -163,6 +163,7 @@
 .auth-social.button {
   width: 100%;
   height: 52px;
+  border-width: 1px;
   border-color: #d1d1d6;
   background: var(--color-canvas);
   color: var(--color-ink);
