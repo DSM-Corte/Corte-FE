@@ -1,4 +1,5 @@
-/* 제출 기록 목록·상세: DESIGN-apple.md 기준 (굵기 400/600, 카드 그림자 없음, 파란색은 동작에만) */
+/* 제출 기록 목록·상세: DESIGN-apple.md 기준 (굵기 400/600, 카드 그림자 없음, 파란색은 동작에만)
+   판정 색은 다크 테마의 제목 색 덮어쓰기보다 우선하도록 선택자를 구체적으로 쓴다 */
 
 .submission-history,
 .submission-detail,
@@ -164,17 +165,17 @@
 }
 
 .submission-status.is-accepted,
-.submission-summary__verdict.is-accepted {
+.submission-summary h2.submission-summary__verdict.is-accepted {
   color: var(--color-success);
 }
 
 .submission-status.is-failed,
-.submission-summary__verdict.is-failed {
+.submission-summary h2.submission-summary__verdict.is-failed {
   color: var(--color-error);
 }
 
 .submission-status.is-pending,
-.submission-summary__verdict.is-pending {
+.submission-summary h2.submission-summary__verdict.is-pending {
   color: var(--color-muted);
 }
 
