@@ -128,8 +128,6 @@
   .submission-detail__test,
   .mypage-stat-card,
   .mypage-grass-card,
-  .mypage-grass-legend__item,
-  .mypage-language-strip span,
   .leaderboard-search,
   .leaderboard-table,
   .code-review-list-head,
@@ -180,7 +178,6 @@
   .submission-table__row:not(.submission-table__row--head):hover,
   .submission-detail__code-head,
   .submission-detail__test,
-  .mypage-grass__cell,
   .leaderboard-table__row--head,
   .leaderboard-table__row:not(.leaderboard-table__row--head):hover,
   .code-review-problem-results button:hover:not(:disabled),
@@ -204,36 +201,6 @@
 :root[data-theme="dark"] .community-editor-pane--preview {
   background:
     linear-gradient(180deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.94));
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="0"] {
-  border-color: rgba(51, 65, 85, 0.82);
-  background: rgba(15, 23, 42, 0.96);
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="1"] {
-  border-color: rgba(56, 189, 248, 0.24);
-  background: rgba(56, 189, 248, 0.16);
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="2"] {
-  border-color: rgba(56, 189, 248, 0.38);
-  background: rgba(56, 189, 248, 0.3);
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="3"] {
-  border-color: rgba(52, 211, 153, 0.42);
-  background: rgba(52, 211, 153, 0.36);
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="4"] {
-  border-color: rgba(52, 211, 153, 0.58);
-  background: rgba(52, 211, 153, 0.58);
-}
-
-:root[data-theme="dark"] .mypage-grass__cell[data-level="5"] {
-  border-color: rgba(110, 231, 183, 0.78);
-  background: #34d399;
 }
 
 :root[data-theme="dark"] :where(
@@ -342,7 +309,6 @@
   .mypage__hero h1,
   .mypage-stat-card strong,
   .mypage-section-heading h2,
-  .mypage-language-strip strong,
   .leaderboard-header h1,
   .leaderboard-user strong,
   .code-review-hero h1,
@@ -439,7 +405,6 @@
   .mypage-stat-card p,
   .mypage-section-heading p,
   .mypage-grass-legend,
-  .mypage-language-strip span,
   .leaderboard-header p:last-child,
   .leaderboard-search > span,
   .leaderboard-loading,
@@ -516,8 +481,7 @@
 :root[data-theme="dark"] :where(
   .review-run-status.is-success,
   .detail-status.is-solved,
-  .submission-status.is-accepted,
-  .mypage-stat-card--success strong
+  .submission-status.is-accepted
 ) {
   background: var(--dark-success-soft);
   color: var(--color-success);
@@ -525,8 +489,7 @@
 
 :root[data-theme="dark"] :where(
   .review-run-status.is-error,
-  .submission-status.is-failed,
-  .mypage-stat-card--error strong
+  .submission-status.is-failed
 ) {
   background: var(--dark-danger-soft);
   color: var(--color-error);
@@ -535,9 +498,7 @@
 :root[data-theme="dark"] :where(
   .detail-status.is-solved,
   .submission-status.is-accepted,
-  .submission-status.is-failed,
-  .mypage-stat-card--success strong,
-  .mypage-stat-card--error strong
+  .submission-status.is-failed
 ) {
   background: transparent;
 }

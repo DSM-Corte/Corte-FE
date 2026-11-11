@@ -49,6 +49,7 @@
 .mypage__content {
   width: min(100% - 48px, var(--max-width-content));
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
   margin: 0 auto;
   padding: var(--space-xl) 0 var(--space-section);
@@ -56,7 +57,7 @@
 
 .mypage-stat-grid {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-sm);
 }
 
@@ -64,8 +65,7 @@
 .mypage-grass-card {
   border: 1px solid var(--color-divider-soft);
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.86);
-  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.04);
+  background: var(--color-canvas);
 }
 
 .mypage-stat-card {
@@ -81,7 +81,6 @@
   font-size: var(--font-size-fine);
   font-weight: var(--font-weight-bold);
   letter-spacing: var(--letter-spacing-caption);
-  text-transform: uppercase;
 }
 
 .mypage-stat-card strong {
@@ -101,14 +100,6 @@
   font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.mypage-stat-card--success strong {
-  color: var(--color-success);
-}
-
-.mypage-stat-card--error strong {
-  color: var(--color-error);
 }
 
 .mypage-grass-card {
@@ -145,114 +136,116 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* 잔디: 왼쪽 요일 + 주 단위 세로줄 53개 */
 .mypage-grass {
-  display: grid;
-  grid-template-columns: repeat(14, minmax(0, 1fr));
+  --grass-cell: 12px;
+  --grass-gap: 3px;
+
+  display: flex;
   gap: var(--space-xs);
+  overflow-x: auto;
+  padding-bottom: var(--space-xxs);
+}
+
+.mypage-grass__weekdays,
+.mypage-grass__week {
+  display: grid;
+  grid-template-rows: var(--font-size-fine) repeat(7, var(--grass-cell));
+  gap: var(--grass-gap);
+}
+
+.mypage-grass__weekdays {
+  flex-shrink: 0;
+  color: var(--color-muted);
+  font-size: var(--font-size-fine);
+  line-height: var(--grass-cell);
+}
+
+.mypage-grass__weeks {
+  display: flex;
+  gap: var(--grass-gap);
+}
+
+.mypage-grass__month {
+  overflow: visible;
+  width: var(--grass-cell);
+  color: var(--color-muted);
+  font-size: var(--font-size-fine);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mypage-grass__cell,
+.mypage-grass__blank {
+  display: block;
+  width: var(--grass-cell);
+  height: var(--grass-cell);
+  border-radius: 3px;
 }
 
 .mypage-grass__cell {
-  display: block;
-  aspect-ratio: 1;
-  border: 1px solid var(--color-divider-soft);
-  border-radius: var(--radius-xs);
-  background: var(--color-surface-pearl);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    transform 0.12s ease;
+  background: var(--color-divider-soft);
+  outline: 1px solid color-mix(in srgb, var(--color-ink) 6%, transparent);
+  outline-offset: -1px;
 }
 
 .mypage-grass__cell[data-level="1"] {
-  border-color: rgba(0, 102, 204, 0.18);
-  background: rgba(0, 102, 204, 0.14);
+  background: color-mix(in srgb, var(--color-success) 30%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="2"] {
-  border-color: rgba(0, 102, 204, 0.26);
-  background: rgba(0, 102, 204, 0.28);
+  background: color-mix(in srgb, var(--color-success) 55%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="3"] {
-  border-color: rgba(34, 197, 94, 0.28);
-  background: rgba(34, 197, 94, 0.42);
+  background: color-mix(in srgb, var(--color-success) 80%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="4"] {
-  border-color: rgba(34, 197, 94, 0.44);
-  background: rgba(34, 197, 94, 0.68);
-}
-
-.mypage-grass__cell[data-level="5"] {
-  border-color: rgba(34, 197, 94, 0.58);
   background: var(--color-success);
 }
 
-.mypage-grass__cell:hover {
-  border-color: var(--color-primary);
-  box-shadow: 0 8px 20px rgba(0, 102, 204, 0.12);
-  transform: translateY(-1px);
+.mypage-grass__weeks .mypage-grass__cell:hover {
+  outline: 2px solid var(--color-primary);
 }
 
 .mypage-grass-legend {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: var(--space-xs) var(--space-sm);
-  margin-top: var(--space-md);
+  justify-content: flex-end;
+  gap: var(--grass-gap, 3px);
+  margin-top: var(--space-sm);
   color: var(--color-muted);
   font-size: var(--font-size-fine);
-  font-weight: var(--font-weight-bold);
-}
-
-.mypage-grass-legend__item {
-  min-height: 26px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--space-xs);
-  border: 1px solid var(--color-divider-soft);
-  border-radius: var(--radius-pill);
-  background: var(--color-canvas);
-}
-
-.mypage-grass-legend__item .mypage-grass__cell {
-  width: 12px;
-  height: 12px;
-  flex-shrink: 0;
-  aspect-ratio: auto;
-}
-
-.mypage-grass-legend__item .mypage-grass__cell:hover {
-  border-color: var(--color-divider-soft);
-  box-shadow: none;
-  transform: none;
-}
-
-.mypage-language-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-xs);
-  margin-top: var(--space-lg);
-}
-
-.mypage-language-strip span {
-  min-height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: 0 var(--space-sm);
-  border: 1px solid var(--color-divider-soft);
-  border-radius: var(--radius-pill);
-  background: var(--color-canvas);
-  color: var(--color-muted);
-  font-size: var(--font-size-caption);
   font-weight: var(--font-weight-semibold);
 }
 
-.mypage-language-strip strong {
-  color: var(--color-ink);
-  font-size: var(--font-size-fine);
+.mypage-grass-legend .mypage-grass__cell {
+  --grass-cell: 12px;
+}
+
+.mypage-grass-legend span:first-child {
+  margin-right: var(--space-xxs);
+}
+
+.mypage-grass-legend span:last-child {
+  margin-left: var(--space-xxs);
+}
+
+.mypage-grass-empty {
+  margin: var(--space-lg) 0 0;
+  padding: var(--space-md);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas-parchment);
+  color: var(--color-muted);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  text-align: center;
+}
+
+.mypage-grass-empty a {
+  margin-left: var(--space-xs);
+  color: var(--color-primary);
   font-weight: var(--font-weight-bold);
 }
 
@@ -267,15 +260,7 @@
     width: min(100% - 32px, var(--max-width-content));
   }
 
-  .mypage-stat-grid {
-    grid-template-columns: 1fr;
-  }
-
   .mypage-section-heading {
     flex-direction: column;
-  }
-
-  .mypage-grass {
-    grid-template-columns: repeat(7, minmax(0, 1fr));
   }
 }
