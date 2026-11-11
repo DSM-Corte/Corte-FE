@@ -1,84 +1,78 @@
 import { Link } from "react-router";
-import { ACCEPTED_RESULT } from "../../api/SubmissionApi";
+import {
+  getLanguageLabel,
+  getVerdictLabel,
+  isPendingVerdict,
+} from "../../api/JudgeApi";
 import Button from "../common/Button";
-
-function formatMemory(memoryKb) {
-  if (!memoryKb) {
-    return "-";
-  }
-
-  return `${(memoryKb / 1024).toFixed(1)} MB`;
-}
 
 function SubmitResultModal({ problemId, submission, onClose }) {
   if (!submission) {
     return null;
   }
 
-  const isAccepted = submission.result === ACCEPTED_RESULT;
+  const isPending = isPendingVerdict(submission.verdict);
+  const isAccepted = submission.verdict === "ACCEPTED";
+  const toneClassName = isPending ? "is-pending" : isAccepted ? "is-accepted" : "is-failed";
 
   return (
     <div className="submit-modal" role="presentation">
       <section
-        className={`submit-modal__dialog ${isAccepted ? "is-accepted" : "is-failed"}`}
+        className={`submit-modal__dialog ${toneClassName}`}
         role="dialog"
         aria-modal="true"
+        aria-busy={isPending}
         aria-labelledby="submit-result-title"
       >
-        <div className="submit-modal__badge" aria-hidden="true">
-          {isAccepted ? "✓" : "!"}
-        </div>
-        <p className="submit-modal__eyebrow">제출 결과</p>
-        <h2 id="submit-result-title">{submission.result}</h2>
+        <p className="submit-modal__eyebrow">제출 #{submission.id}</p>
+        <h2 id="submit-result-title" aria-live="polite">
+          {getVerdictLabel(submission.verdict)}
+        </h2>
         <p className="submit-modal__message">
-          제출 기록에 저장되었습니다.
+          {isPending
+            ? "채점 서버에서 테스트케이스를 실행하고 있습니다."
+            : "채점이 끝났고 제출 기록에 저장되었습니다."}
         </p>
 
         <dl className="submit-modal__stats">
           <div>
-            <dt>언어</dt>
-            <dd>{submission.language}</dd>
+            <dt>통과</dt>
+            <dd>
+              {submission.passedCount} / {submission.totalCount}
+            </dd>
           </div>
           <div>
             <dt>실행 시간</dt>
-            <dd>{submission.runtimeMs}ms</dd>
+            <dd>{isPending ? "-" : `${submission.runtimeMs}ms`}</dd>
           </div>
-          <div>
-            <dt>메모리</dt>
-            <dd>{formatMemory(submission.memoryKb)}</dd>
-          </div>
+          {submission.language && (
+            <div>
+              <dt>언어</dt>
+              <dd>{getLanguageLabel(submission.language)}</dd>
+            </div>
+          )}
         </dl>
 
-        <div className="submit-modal__actions">
-          <Link
-            to={`/submissions?problemId=${encodeURIComponent(problemId)}`}
-            className="button button--contained button--md"
-          >
-            <span className="button_text">확인</span>
-          </Link>
-          <Button
-            type="button"
-            variant="pearl"
-            size="medium"
-            onClick={onClose}
-          >
-            계속 수정
-          </Button>
-          {isAccepted && (
+        {submission.message && !isPending && (
+          <pre className="submit-modal__detail">{submission.message}</pre>
+        )}
+
+        {!isPending && (
+          <div className="submit-modal__actions">
             <Link
-              to={`/code-review/new?submissionId=${encodeURIComponent(submission.id)}`}
-              className="button button--pearl button--md"
+              to={`/submissions/${submission.id}`}
+              className="button button--contained button--md"
             >
-              <span className="button_text">코드 리뷰받기</span>
+              <span className="button_text">제출 상세 보기</span>
             </Link>
-          )}
-          <Link
-            to={`/problems/${problemId}`}
-            className="submit-modal__text-link"
-          >
-            문제로 돌아가기
-          </Link>
-        </div>
+            <Button type="button" variant="outline" size="medium" onClick={onClose}>
+              계속 수정
+            </Button>
+            <Link to={`/problems/${problemId}`} className="submit-modal__text-link">
+              문제로 돌아가기
+            </Link>
+          </div>
+        )}
       </section>
     </div>
   );

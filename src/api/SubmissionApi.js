@@ -1,6 +1,6 @@
 import { getProblemById } from "./ProblemApi";
 import { getCurrentUserId } from "./AuthApi";
-import { getStoredSubmissions, saveSubmissions } from "./submissionStorage";
+import { getStoredSubmissions } from "./submissionStorage";
 
 const RUN_TIMEOUT_MS = 2500;
 const PYTHON_RUN_TIMEOUT_MS = 20000;
@@ -8,11 +8,6 @@ const PYODIDE_CDN_URL = "https://cdn.jsdelivr.net/pyodide/v0.29.4/full/pyodide.m
 
 let pythonWorker = null;
 let pythonRequestId = 0;
-
-export const languageOptions = [
-  { key: "javascript", label: "JavaScript" },
-  { key: "python", label: "Python" },
-];
 
 export const ACCEPTED_RESULT = "맞았습니다";
 
@@ -315,52 +310,6 @@ function estimateMemoryKb({ code, language, testResults }) {
   return languageBaseMemory + codeMemory + testMemory;
 }
 
-export function getStarterCode(problem, language = "javascript") {
-  if (problem.id === 1000) {
-    if (language === "python") {
-      return `import sys
-
-data = sys.stdin.read().strip().split()
-a, b = map(int, data)
-print(a + b)`;
-    }
-
-    return `function solve(input) {
-  const [a, b] = input.trim().split(/\\s+/).map(Number);
-  return String(a + b);
-}`;
-  }
-
-  if (problem.id === 1001) {
-    if (language === "python") {
-      return `import sys
-
-data = sys.stdin.read().strip().split()
-a, b = map(int, data)
-print(a - b)`;
-    }
-
-    return `function solve(input) {
-  const [a, b] = input.trim().split(/\\s+/).map(Number);
-  return String(a - b);
-}`;
-  }
-
-  if (language === "python") {
-    return `import sys
-
-input_data = sys.stdin.read()
-
-# 입력을 분석하고 정답을 출력하세요.
-print("")`;
-  }
-
-  return `function solve(input) {
-  // input 문자열을 분석하고 정답 문자열을 반환하세요.
-  return "";
-}`;
-}
-
 export async function runCode({ problemId, language, code }) {
   await delay();
 
@@ -433,33 +382,6 @@ export async function runSnippetCode({ language, code, input = "" }) {
     output: result.output,
     runtimeMs: result.runtimeMs,
   };
-}
-
-export async function submitCode({ problemId, language, code }) {
-  const runResult = await runCode({ problemId, language, code });
-  const userId = getCurrentUserId();
-
-  if (!userId) {
-    throw createSubmissionError("로그인 후 제출할 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  const submission = {
-    id: `submission-${Date.now()}`,
-    userId,
-    problemId: Number(problemId),
-    problemTitle: runResult.problem.title,
-    language,
-    code,
-    result: runResult.summary.verdict,
-    runtimeMs: runResult.summary.runtimeMs,
-    memoryKb: runResult.summary.memoryKb,
-    submittedAt: new Date().toISOString(),
-    testResults: runResult.testResults,
-  };
-
-  saveSubmissions([submission, ...getStoredSubmissions()]);
-
-  return submission;
 }
 
 export async function getSubmissionList({ problemId } = {}) {
