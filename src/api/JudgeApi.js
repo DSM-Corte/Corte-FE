@@ -52,10 +52,17 @@ export function formatSubmittedAt(value) {
     return "--";
   }
 
+  const date = new Date(value);
+
+  // 소수점 아래 자릿수가 많은 시각을 못 읽는 브라우저에서는 받은 문자열을 그대로 보여준다
+  if (Number.isNaN(date.getTime())) {
+    return String(value).replace("T", " ").slice(0, 16);
+  }
+
   return new Intl.DateTimeFormat("ko-KR", {
     dateStyle: "medium",
     timeStyle: "short",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function getMySubmissions({ problemId, page = 0, size = SUBMISSION_PAGE_SIZE } = {}) {
