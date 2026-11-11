@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
   createExecution,
@@ -59,6 +59,15 @@ function ProblemSubmitPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isUnmountedRef = useRef(false);
+
+  useEffect(() => {
+    isUnmountedRef.current = false;
+
+    return () => {
+      isUnmountedRef.current = true;
+    };
+  }, []);
 
   useEffect(() => {
     let ignore = false;
@@ -71,7 +80,10 @@ function ProblemSubmitPage() {
         const [nextProblem, nextExamples, sourceSubmission] = await Promise.all([
           getProblem(id),
           getPublicTestCases(id),
-          sourceSubmissionId ? getSubmission(sourceSubmissionId) : null,
+          // 이전 제출을 못 불러와도 문제는 풀 수 있도록 실패를 무시하고 시작 코드를 쓴다
+          sourceSubmissionId
+            ? getSubmission(sourceSubmissionId).catch(() => null)
+            : null,
         ]);
 
         if (ignore) {
@@ -85,6 +97,9 @@ function ProblemSubmitPage() {
         if (sourceSubmission && String(sourceSubmission.problemId) === String(id)) {
           setLanguage(sourceSubmission.language);
           setCode(sourceSubmission.code);
+        } else {
+          setLanguage(DEFAULT_LANGUAGE);
+          setCode(getStarterCode(DEFAULT_LANGUAGE));
         }
       } catch (error) {
         if (ignore) {
@@ -120,6 +135,10 @@ function ProblemSubmitPage() {
   }, [id, navigate, sourceSubmissionId]);
 
   function handleActionError(error) {
+    if (error.code === "CANCELLED") {
+      return true;
+    }
+
     if (error.status === 401) {
       navigate("/login", {
         state: {
@@ -149,10 +168,17 @@ function ProblemSubmitPage() {
 
   async function runOnce(stdin) {
     const execution = await createExecution({ problemId: id, language, code, stdin });
-    return waitForJob("execution", execution.id);
+    return waitForJob("execution", execution.id, {
+      isCancelled: () => isUnmountedRef.current,
+    });
   }
 
   async function handleRunInput() {
+    // 한 사용자는 실행·제출을 동시에 하나만 할 수 있다 (Ctrl+Enter는 버튼 비활성과 무관하게 호출된다)
+    if (isRunning || isSubmitting) {
+      return;
+    }
+
     setIsRunning(true);
     setMessage("");
     setActiveRunView("terminal");
@@ -261,7 +287,10 @@ function ProblemSubmitPage() {
     try {
       const created = await createSubmission({ problemId: id, language, code });
       setSubmission(created);
-      await waitForJob("submission", created.id, { onUpdate: setSubmission });
+      await waitForJob("submission", created.id, {
+        onUpdate: setSubmission,
+        isCancelled: () => isUnmountedRef.current,
+      });
     } catch (error) {
       setSubmission(null);
 

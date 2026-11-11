@@ -122,11 +122,18 @@ export function createSubmission({ problemId, language, code }) {
 }
 
 // 채점은 비동기라 최종 판정이 나올 때까지 단건 조회를 반복한다
-export async function waitForJob(kind, id, { onUpdate } = {}) {
+// isCancelled가 true를 돌려주면 화면을 떠난 것으로 보고 조회를 멈춘다
+export async function waitForJob(kind, id, { onUpdate, isCancelled = () => false } = {}) {
   const path = kind === "submission" ? "/api/submissions" : "/api/executions";
   const startedAt = Date.now();
 
   while (Date.now() - startedAt < JOB_WAIT_TIMEOUT_MS) {
+    if (isCancelled()) {
+      const error = new Error("결과 조회를 멈췄습니다.");
+      error.code = "CANCELLED";
+      throw error;
+    }
+
     const job = await request(`${path}/${encodeURIComponent(id)}`);
     onUpdate?.(job);
 
