@@ -8,6 +8,8 @@ export class ApiError extends Error {
   }
 }
 
+const TOKEN_ERROR_CODES = ["A001", "A002", "A003"];
+
 async function readBody(response) {
   const text = await response.text();
 
@@ -52,8 +54,8 @@ export async function request(path, { method = "GET", body, headers = {} } = {})
     return data;
   }
 
-  // 만료·위조 토큰은 다시 로그인해야 하므로 저장된 세션을 지운다
-  if (response.status === 401 && token) {
+  // 만료·위조 토큰(A001~A003)만 세션을 지운다. 로그인 실패(U002) 같은 401은 세션과 무관하다
+  if (response.status === 401 && token && TOKEN_ERROR_CODES.includes(data?.code)) {
     clearAuthSession();
   }
 
