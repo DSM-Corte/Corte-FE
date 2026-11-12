@@ -1,6 +1,6 @@
 import { getCurrentUser } from "./AuthApi";
 import { mockProblems } from "../data/mockProblem";
-import { archivedSeedPosts, archivedSeedPostIds } from "../data/archivedSeedPosts";
+import { archivedSeedPostIds } from "../data/archivedSeedPosts";
 
 const BOARD_STORAGE_KEY = "cotre_mock_board_posts_v2";
 const DEFAULT_BOARD_PAGE_SIZE = 8;
