@@ -186,7 +186,7 @@ function paginateProblems(problems, page, pageSize) {
   };
 }
 
-export async function getProblemList(options = {}) {
+export async function getProblemList(options = {}, problems = getUserProblems()) {
   const {
     keyword = "",
     tierMinIndex = "0",
@@ -205,7 +205,7 @@ export async function getProblemList(options = {}) {
     pageSize = DEFAULT_PROBLEM_PAGE_SIZE,
   } = options;
 
-  const userProblems = getUserProblems();
+  const userProblems = problems;
   const problemSetFilter = await getProblemSetFilter(problemSetId, userProblems);
 
   const filteredProblems = userProblems.filter((problem) => {
