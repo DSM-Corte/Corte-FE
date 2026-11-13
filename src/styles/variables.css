@@ -43,11 +43,12 @@
     Typography
   ========================= */
 
+  /* SF Pro는 Apple 기기에서만 쓰이고, 그 밖에서는 Pretendard로 대체한다 */
   --font-display:
-    "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -apple-system, BlinkMacSystemFont, "SF Pro Display", "Pretendard", system-ui, sans-serif;
 
   --font-body:
-    "Pretendard", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+    -apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard", system-ui, sans-serif;
 
   --font-code: "D2Coding", "Consolas", "Monaco", monospace;
 

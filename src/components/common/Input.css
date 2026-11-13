@@ -8,9 +8,7 @@
   font-family: var(--font-body);
   font-size: var(--font-size-caption);
   outline: 0;
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
+  transition: border-color 0.15s ease;
 }
 
 .input::placeholder {
@@ -19,5 +17,9 @@
 
 .input:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+}
+
+.input:focus-visible {
+  outline: 2px solid var(--color-primary-focus);
+  outline-offset: 1px;
 }
