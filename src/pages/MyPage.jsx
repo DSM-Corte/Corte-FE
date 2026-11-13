@@ -164,6 +164,7 @@ function MyPage() {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [grass, setGrass] = useState([]);
+  const [grassError, setGrassError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -182,10 +183,26 @@ function MyPage() {
         return;
       }
 
-      const nextGrass = await getMyGrass();
+      try {
+        const nextGrass = await getMyGrass();
+        setGrass(nextGrass);
+      } catch (error) {
+        // 토큰이 만료되거나 잘못되면 다시 로그인하게 보낸다
+        if (error.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: "/mypage",
+              message: "로그인이 만료되었어요. 다시 로그인해주세요.",
+            },
+          });
+          return;
+        }
+
+        setGrassError(error.message);
+      }
 
       setUser(currentUser);
-      setGrass(nextGrass);
       setIsLoading(false);
     }
 
@@ -302,7 +319,11 @@ function MyPage() {
             <span>많음</span>
           </div>
 
-          {grass.length === 0 && (
+          {grassError && (
+            <p className="mypage-grass-empty">잔디를 불러오지 못했어요. {grassError}</p>
+          )}
+
+          {!grassError && grass.length === 0 && (
             <p className="mypage-grass-empty">
               아직 맞힌 문제가 없어요{" "}
               <Link to="/problems">첫 문제 풀러 가기</Link>
