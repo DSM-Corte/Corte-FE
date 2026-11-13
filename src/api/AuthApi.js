@@ -1,5 +1,8 @@
+import { request } from "./apiClient";
+
+// 아직 백엔드가 없는 기능(리더보드, 코드 리뷰 등)이 보여주는 다른 사용자 목록이다
 const USER_STORAGE_KEY = "cotre_mock_users";
-const SESSION_STORAGE_KEY = "cotre_mock_session";
+const SESSION_STORAGE_KEY = "cotre_session";
 const ACCESS_TOKEN_STORAGE_KEY = "cotre_access_token";
 const ACCESS_TOKEN_COOKIE_KEY = "cotre_access_token";
 
@@ -35,36 +38,25 @@ function getStoredUsers() {
   }
 }
 
-function saveUsers(users) {
-  window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(users));
+function decodeTokenPayload(token) {
+  try {
+    const base64 = token.split(".")[1].replaceAll("-", "+").replaceAll("_", "/");
+    const binary = window.atob(base64);
+    const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
 }
 
-function encodeBase64Url(value) {
-  const bytes = new TextEncoder().encode(value);
-  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join("");
+function isUsableToken(token) {
+  const payload = token ? decodeTokenPayload(token) : null;
 
-  return window
-    .btoa(binary)
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
-}
-
-function createAccessToken(user) {
-  const header = encodeBase64Url(JSON.stringify({ alg: "mock", typ: "JWT" }));
-  const payload = encodeBase64Url(
-    JSON.stringify({
-      sub: user.id,
-      email: user.email,
-      name: user.name,
-      iat: Math.floor(Date.now() / 1000),
-    }),
+  return Boolean(
+    payload?.sub &&
+      typeof payload.exp === "number" &&
+      payload.exp * 1000 > Date.now(),
   );
-  const signature = encodeBase64Url(
-    `${user.id}:${Date.now()}:${Math.random().toString(36).slice(2)}`,
-  );
-
-  return `${header}.${payload}.${signature}`;
 }
 
 function setCookie(name, value, { maxAge } = {}) {
@@ -123,7 +115,7 @@ function assertEmail(email) {
   const normalizedEmail = normalize(email);
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  if (!emailPattern.test(normalizedEmail)) {
+  if (!emailPattern.test(normalizedEmail) || normalizedEmail.length > 100) {
     throw createAuthError("올바른 이메일 주소를 입력해주세요.", "INVALID_EMAIL");
   }
 
@@ -131,19 +123,52 @@ function assertEmail(email) {
 }
 
 function assertPassword(password) {
-  if (String(password ?? "").length < 6) {
-    throw createAuthError("비밀번호는 6자 이상이어야 합니다.", "WEAK_PASSWORD");
+  const length = String(password ?? "").length;
+
+  if (length < 8 || length > 20) {
+    throw createAuthError("비밀번호는 8자 이상 20자 이하여야 합니다.", "WEAK_PASSWORD");
   }
 }
 
-export async function signup({ name, email, password, passwordConfirm }) {
-  await delay();
+function getSession() {
+  const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
 
+  if (!rawSession) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(rawSession);
+  } catch {
+    clearAuthSession();
+    return null;
+  }
+}
+
+function toUser(session) {
+  return {
+    id: session.userId,
+    // 로그인 응답에 닉네임이 없어 이메일 앞부분을 이름으로 쓴다
+    name: session.email.split("@")[0],
+    email: session.email,
+  };
+}
+
+export function clearAuthSession() {
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  clearAccessToken();
+}
+
+export async function signup({ name, email, password, passwordConfirm }) {
   const trimmedName = String(name ?? "").trim();
   const normalizedEmail = assertEmail(email);
 
   if (!trimmedName) {
     throw createAuthError("이름을 입력해주세요.", "EMPTY_NAME");
+  }
+
+  if (trimmedName.length > 20) {
+    throw createAuthError("이름은 20자 이하여야 합니다.", "LONG_NAME");
   }
 
   assertPassword(password);
@@ -152,60 +177,41 @@ export async function signup({ name, email, password, passwordConfirm }) {
     throw createAuthError("비밀번호가 서로 일치하지 않습니다.", "PASSWORD_MISMATCH");
   }
 
-  const users = getStoredUsers();
-  const isDuplicated = users.some((user) => normalize(user.email) === normalizedEmail);
-
-  if (isDuplicated) {
-    throw createAuthError("이미 가입된 이메일입니다.", "DUPLICATED_EMAIL");
-  }
-
-  const nextUser = {
-    id: `user-${Date.now()}`,
-    name: trimmedName,
-    email: normalizedEmail,
-    password,
-    createdAt: new Date().toISOString(),
-  };
-
-  saveUsers([...users, nextUser]);
+  await request("/auth/signup", {
+    method: "POST",
+    body: { email: normalizedEmail, password, nickname: trimmedName },
+  });
 
   return {
-    user: sanitizeUser(nextUser),
+    user: { name: trimmedName, email: normalizedEmail },
   };
 }
 
 export async function login({ email, password, remember = false }) {
-  await delay();
-
   const normalizedEmail = assertEmail(email);
 
   if (!password) {
     throw createAuthError("비밀번호를 입력해주세요.", "EMPTY_PASSWORD");
   }
 
-  const users = getStoredUsers();
-  const user = users.find((storedUser) => normalize(storedUser.email) === normalizedEmail);
-
-  if (!user || user.password !== password) {
-    throw createAuthError(
-      "이메일 또는 비밀번호가 올바르지 않습니다.",
-      "INVALID_CREDENTIALS",
-    );
-  }
+  const { accessToken } = await request("/auth/login", {
+    method: "POST",
+    body: { email: normalizedEmail, password },
+  });
 
   const session = {
-    userId: user.id,
+    userId: decodeTokenPayload(accessToken)?.sub ?? "",
+    email: normalizedEmail,
     remember,
-    accessToken: createAccessToken(user),
     signedInAt: new Date().toISOString(),
   };
 
   window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
-  saveAccessToken(session.accessToken, remember);
+  saveAccessToken(accessToken, remember);
 
   return {
-    accessToken: session.accessToken,
-    user: sanitizeUser(user),
+    accessToken,
+    user: toUser(session),
     session,
   };
 }
@@ -216,29 +222,17 @@ export function clearAuthSession() {
 }
 
 export async function logout() {
-  await delay(100);
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
-  clearAccessToken();
+  clearAuthSession();
 }
 
 export async function getCurrentUser() {
-  await delay(100);
+  const session = getSession();
 
-  const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-
-  if (!rawSession) {
+  if (!session || !isAuthenticated()) {
     return undefined;
   }
 
-  try {
-    const session = JSON.parse(rawSession);
-    const user = getStoredUsers().find((storedUser) => storedUser.id === session.userId);
-    return user ? sanitizeUser(user) : undefined;
-  } catch {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
-    clearAccessToken();
-    return undefined;
-  }
+  return toUser(session);
 }
 
 export async function getUserById(id) {
@@ -253,43 +247,35 @@ export async function getUserById(id) {
     };
   }
 
+  const session = getSession();
+
+  if (session && session.userId === id) {
+    return toUser(session);
+  }
+
   const user = getStoredUsers().find((storedUser) => storedUser.id === id);
 
   return user ? sanitizeUser(user) : undefined;
 }
 
 export function getCurrentUserId() {
-  const rawSession = window.localStorage.getItem(SESSION_STORAGE_KEY);
-
-  if (!rawSession || !getAuthToken()) {
+  if (!isAuthenticated()) {
     return "";
   }
 
-  try {
-    const session = JSON.parse(rawSession);
-    return session.userId ?? "";
-  } catch {
-    window.localStorage.removeItem(SESSION_STORAGE_KEY);
-    clearAccessToken();
-    return "";
-  }
+  return getSession()?.userId ?? "";
 }
 
 export function getAuthToken() {
-  return (
+  const token =
     getCookie(ACCESS_TOKEN_COOKIE_KEY) ||
     window.localStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ||
     window.sessionStorage.getItem(ACCESS_TOKEN_STORAGE_KEY) ||
-    ""
-  );
+    "";
+
+  return isUsableToken(token) ? token : "";
 }
 
 export function isAuthenticated() {
   return Boolean(getAuthToken());
-}
-
-export function resetMockAuth() {
-  window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(seedUsers));
-  window.localStorage.removeItem(SESSION_STORAGE_KEY);
-  clearAccessToken();
 }

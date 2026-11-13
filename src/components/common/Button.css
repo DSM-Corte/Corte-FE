@@ -6,7 +6,7 @@
   gap: var(--space-xs);
 
   font-family: var(--font-body);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-regular);
   line-height: 1;
   letter-spacing: var(--letter-spacing-caption);
 
@@ -23,7 +23,7 @@
 }
 
 .button:active:not(:disabled) {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .button:focus-visible {
@@ -55,15 +55,18 @@
 
 .button--md {
   height: 44px;
-  padding: 0 var(--space-lg);
-  font-size: var(--font-size-caption);
+  padding: 0 22px;
+  font-size: var(--font-size-body);
+  letter-spacing: var(--letter-spacing-tight);
   border-radius: var(--radius-pill);
 }
 
 .button--lg {
   height: 52px;
-  padding: 0 var(--space-xl);
-  font-size: var(--font-size-body);
+  padding: 0 28px;
+  font-size: 18px;
+  font-weight: var(--font-weight-light);
+  letter-spacing: 0;
   border-radius: var(--radius-pill);
 }
 
@@ -114,9 +117,12 @@
 
 /* 어두운 버튼 */
 .button--dark {
+  padding: 0 15px;
   background-color: var(--color-ink);
   color: var(--color-body-on-dark);
   border-radius: var(--radius-sm);
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
 }
 
 .button--dark:hover:not(:disabled) {
@@ -125,9 +131,13 @@
 
 /* 연한 배경 버튼 */
 .button--pearl {
+  padding: 0 14px;
+  border: 3px solid var(--color-divider-soft);
+  border-radius: var(--radius-md);
   background-color: var(--color-surface-pearl);
   color: var(--color-ink);
-  border-color: var(--color-divider-soft);
+  font-size: var(--font-size-caption);
+  letter-spacing: var(--letter-spacing-caption);
 }
 
 .button--pearl:hover:not(:disabled) {

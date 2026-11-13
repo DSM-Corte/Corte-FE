@@ -33,7 +33,7 @@ a {
   position: sticky;
   top: 0;
   z-index: 100;
-  background: #1d1d1f;
+  background: var(--color-surface-black);
   color: var(--color-body-on-dark);
 }
 
@@ -70,9 +70,10 @@ a {
   height: var(--global-nav-height);
   display: inline-flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.78);
-  font-size: 14px;
-  font-weight: var(--font-weight-semibold);
+  color: rgba(255, 255, 255, 0.8);
+  font-size: var(--font-size-fine);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: -0.12px;
 }
 
 .header__link--active,
@@ -119,11 +120,12 @@ a {
   align-items: center;
   padding: 0 var(--space-sm);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: var(--radius-pill);
+  border-radius: var(--radius-sm);
   background: transparent;
   color: rgba(255, 255, 255, 0.82);
   font-size: var(--font-size-fine);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-regular);
+  letter-spacing: -0.12px;
   transition:
     border-color 0.15s ease,
     background-color 0.15s ease,
@@ -172,10 +174,6 @@ a {
 
   .header__nav {
     gap: 16px;
-  }
-
-  .header__link {
-    font-size: 13px;
   }
 
   .header__logout-button {

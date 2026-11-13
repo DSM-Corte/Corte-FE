@@ -15,12 +15,19 @@ const completionKeymap = keymap.of([
   indentWithTab,
 ]);
 
+// 채점 API의 언어 이름(PYTHON 등)과 기존 소문자 키를 함께 받는다
 function getLanguageExtensions(language) {
-  if (language === "python") {
+  const languageKey = String(language ?? "").toLowerCase();
+
+  if (languageKey === "python") {
     return [python()];
   }
 
-  return [javascript()];
+  if (languageKey === "javascript") {
+    return [javascript()];
+  }
+
+  return [];
 }
 
 function CodeMirrorEditor({ value, language, onChange }) {
