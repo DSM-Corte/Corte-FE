@@ -54,7 +54,7 @@ function SignupPage() {
             id="signup-name"
             label="이름"
             name="name"
-            placeholder="이름"
+            placeholder="이름 (20자 이하)"
             autoComplete="name"
             required
           />
@@ -72,7 +72,7 @@ function SignupPage() {
             label="비밀번호"
             name="password"
             type="password"
-            placeholder="비밀번호"
+            placeholder="비밀번호 (8~20자)"
             autoComplete="new-password"
             required
           />
