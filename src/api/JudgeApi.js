@@ -82,3 +82,120 @@ export function getSubmission(id) {
 export function getProblem(id) {
   return request(`/api/problems/${encodeURIComponent(id)}`);
 }
+
+export const judgeLanguageOptions = Object.entries(languageLabels).map(([key, label]) => ({
+  key,
+  label,
+}));
+
+const JOB_POLL_INTERVAL_MS = 1000;
+const JOB_WAIT_TIMEOUT_MS = 3 * 60 * 1000;
+
+function delay(ms) {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export async function getPublicTestCases(problemId) {
+  const result = await request(
+    `/api/problems/${encodeURIComponent(problemId)}/test-cases?size=100`,
+  );
+
+  return result.content
+    .filter((testCase) => testCase.publicExample)
+    .sort((a, b) => a.position - b.position || a.id - b.id);
+}
+
+export function createExecution({ problemId, language, code, stdin }) {
+  return request("/api/executions", {
+    method: "POST",
+    body: { problemId: Number(problemId), language, code, stdin },
+  });
+}
+
+export function createSubmission({ problemId, language, code }) {
+  return request("/api/submissions", {
+    method: "POST",
+    body: { problemId: Number(problemId), language, code },
+  });
+}
+
+// 채점은 비동기라 최종 판정이 나올 때까지 단건 조회를 반복한다
+// isCancelled가 true를 돌려주면 화면을 떠난 것으로 보고 조회를 멈춘다
+export async function waitForJob(kind, id, { onUpdate, isCancelled = () => false } = {}) {
+  const path = kind === "submission" ? "/api/submissions" : "/api/executions";
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < JOB_WAIT_TIMEOUT_MS) {
+    if (isCancelled()) {
+      const error = new Error("결과 조회를 멈췄습니다.");
+      error.code = "CANCELLED";
+      throw error;
+    }
+
+    const job = await request(`${path}/${encodeURIComponent(id)}`);
+    onUpdate?.(job);
+
+    if (!isPendingVerdict(job.verdict)) {
+      return job;
+    }
+
+    await delay(JOB_POLL_INTERVAL_MS);
+  }
+
+  const error = new Error("채점 결과를 기다리는 시간이 초과되었습니다. 제출 기록에서 다시 확인해주세요.");
+  error.code = "WAIT_TIMEOUT";
+  throw error;
+}
+
+export function getStarterCode(language) {
+  return starterCodes[language] ?? "";
+}
+
+const starterCodes = {
+  C: `#include <stdio.h>
+
+int main(void) {
+    // 표준 입력을 읽고 정답을 출력하세요.
+    return 0;
+}
+`,
+  CPP: `#include <iostream>
+using namespace std;
+
+int main() {
+    // 표준 입력을 읽고 정답을 출력하세요.
+    return 0;
+}
+`,
+  JAVA: `import java.io.*;
+
+public class Main {
+    public static void main(String[] args) throws IOException {
+        BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+        // 표준 입력을 읽고 정답을 출력하세요.
+    }
+}
+`,
+  CSHARP: `using System;
+
+public class Program
+{
+    public static void Main()
+    {
+        // 표준 입력을 읽고 정답을 출력하세요.
+    }
+}
+`,
+  JAVASCRIPT: `const input = require("fs").readFileSync(0, "utf8");
+
+// 입력을 분석하고 console.log로 정답을 출력하세요.
+`,
+  PYTHON: `import sys
+
+input_data = sys.stdin.read()
+
+# 입력을 분석하고 print로 정답을 출력하세요.
+`,
+};
