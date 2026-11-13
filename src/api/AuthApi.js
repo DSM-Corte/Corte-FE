@@ -210,6 +210,11 @@ export async function login({ email, password, remember = false }) {
   };
 }
 
+export function clearAuthSession() {
+  window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  clearAccessToken();
+}
+
 export async function logout() {
   await delay(100);
   window.localStorage.removeItem(SESSION_STORAGE_KEY);
