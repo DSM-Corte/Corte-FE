@@ -1,72 +1,56 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams, useSearchParams } from "react-router";
-import { isAuthenticated } from "../api/AuthApi";
-import { getProblemById } from "../api/ProblemApi";
-import { ACCEPTED_RESULT, getSubmissionList } from "../api/SubmissionApi";
+import { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate, useParams, useSearchParams } from "react-router";
+import {
+  formatSubmittedAt,
+  getLanguageLabel,
+  getMySubmissions,
+  getVerdictLabel,
+  getVerdictTone,
+} from "../api/JudgeApi";
 import "./ProblemSubmissionsPage.css";
-
-function formatMemory(memoryKb) {
-  if (!memoryKb) {
-    return "--";
-  }
-
-  return `${(memoryKb / 1024).toFixed(1)} MB`;
-}
-
-function formatSubmittedAt(value) {
-  return new Intl.DateTimeFormat("ko-KR", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(new Date(value));
-}
 
 function ProblemSubmissionsPage() {
   const { id } = useParams();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const navigate = useNavigate();
-  const [problem, setProblem] = useState(null);
-  const [submissions, setSubmissions] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
 
-  const queryProblemId = searchParams.get("problemId") ?? "";
-  const filterProblemId = id ?? queryProblemId;
-  const submissionListPath = useMemo(() => {
-    if (!filterProblemId) {
-      return "/submissions";
-    }
-
-    return `/submissions?problemId=${encodeURIComponent(filterProblemId)}`;
-  }, [filterProblemId]);
+  const problemId = id ?? searchParams.get("problemId") ?? "";
+  const pageNumber = Math.max(1, Number.parseInt(searchParams.get("page") ?? "1", 10) || 1);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      navigate("/login", {
-        replace: true,
-        state: {
-          from: submissionListPath,
-          message: "제출 기록을 보려면 먼저 로그인해주세요.",
-        },
-      });
-      return;
-    }
-
     let ignore = false;
 
     async function fetchSubmissions() {
-      setIsLoading(true);
+      setResult(null);
+      setError("");
 
-      const [nextProblem, nextSubmissions] = await Promise.all([
-        filterProblemId ? getProblemById(filterProblemId) : Promise.resolve(null),
-        getSubmissionList(filterProblemId ? { problemId: filterProblemId } : {}),
-      ]);
+      try {
+        const nextResult = await getMySubmissions({ problemId, page: pageNumber - 1 });
 
-      if (ignore) {
-        return;
+        if (!ignore) {
+          setResult(nextResult);
+        }
+      } catch (fetchError) {
+        if (ignore) {
+          return;
+        }
+
+        if (fetchError.status === 401) {
+          navigate("/login", {
+            replace: true,
+            state: {
+              from: `${location.pathname}${location.search}`,
+              message: "로그인이 만료되었습니다. 다시 로그인해주세요.",
+            },
+          });
+          return;
+        }
+
+        setError(fetchError.message);
       }
-
-      setProblem(nextProblem);
-      setSubmissions(nextSubmissions);
-      setIsLoading(false);
     }
 
     fetchSubmissions();
@@ -74,126 +58,112 @@ function ProblemSubmissionsPage() {
     return () => {
       ignore = true;
     };
-  }, [filterProblemId, navigate, submissionListPath]);
+  }, [problemId, pageNumber, navigate, location.pathname, location.search]);
 
-  if (isLoading) {
-    return <main className="submission-state">제출 기록을 불러오는 중입니다.</main>;
+  function movePage(nextPageNumber) {
+    const nextParams = new URLSearchParams(searchParams);
+    nextParams.set("page", String(nextPageNumber));
+    setSearchParams(nextParams);
   }
 
-  if (filterProblemId && !problem) {
+  if (error) {
     return (
       <main className="submission-state">
-        <p>문제를 찾을 수 없습니다.</p>
-        <Link to="/submissions">전체 제출 기록으로 돌아가기</Link>
+        <p>{error}</p>
+        <Link to="/submissions">전체 제출 기록 보기</Link>
       </main>
     );
   }
 
-  const isFiltered = Boolean(problem);
+  if (!result) {
+    return <main className="submission-state">제출 기록을 불러오는 중입니다.</main>;
+  }
+
+  const submissions = result.content;
+  const problemTitle = submissions[0]?.problemTitle;
+  const isFiltered = Boolean(problemId);
+  const totalPages = Math.max(1, result.totalPages);
 
   return (
     <main className="submission-history">
       <header className="submission-history__bar">
-        <div>
-          <Link
-            to={isFiltered ? `/problems/${problem.id}` : "/problems"}
-            className="submission-history__back"
-          >
-            {isFiltered ? "문제로 돌아가기" : "문제 목록"}
-          </Link>
-          <h1>제출 기록</h1>
-        </div>
+        <h1>제출 기록</h1>
+        <Link
+          to={isFiltered ? `/problems/${problemId}` : "/problems"}
+          className="submission-history__back"
+        >
+          {isFiltered ? "문제로 돌아가기" : "문제 목록"}
+        </Link>
       </header>
 
       <section className="submission-summary">
-        <div>
-          <p className="submission-summary__eyebrow">
-            {isFiltered ? "Filtered Submissions" : "All Submissions"}
-          </p>
-          <h2>{isFiltered ? problem.title : "전체 제출 기록"}</h2>
-          <p>
-            {isFiltered
-              ? "이 문제에 대한 이전 제출 결과와 실행 성능을 확인하고, 정답 코드는 코드 리뷰로 이어갈 수 있습니다."
-              : "내가 제출한 문제 풀이 기록을 한곳에서 확인하고, 필요한 제출 코드를 다시 수정할 수 있습니다."}
-          </p>
-        </div>
+        <p className="submission-summary__eyebrow">
+          {isFiltered ? `문제 ${problemId}` : "내 제출"}
+        </p>
+        <h2>{isFiltered ? problemTitle ?? `문제 ${problemId}` : "전체 제출 기록"}</h2>
+        <p>
+          총 {result.totalElements.toLocaleString()}개의 제출이 있습니다. 제출을 열면
+          채점 결과와 제출했던 코드를 다시 볼 수 있습니다.
+        </p>
+        {isFiltered && (
+          <Link to="/submissions" className="submission-summary__link">
+            전체 제출 기록 보기
+          </Link>
+        )}
       </section>
 
       <section className="submission-list-section">
         <div className="submission-table" role="table" aria-label="제출 기록">
           <div className="submission-table__row submission-table__row--head" role="row">
-            <span role="columnheader">No.</span>
+            <span role="columnheader">제출 번호</span>
             <span role="columnheader">문제</span>
-            <span role="columnheader">상태</span>
+            <span role="columnheader">결과</span>
+            <span role="columnheader">통과</span>
             <span role="columnheader">언어</span>
             <span role="columnheader">시간</span>
-            <span role="columnheader">메모리</span>
             <span role="columnheader">작업</span>
           </div>
 
-          {submissions.map((submission, index) => {
-            const isAccepted = submission.result === ACCEPTED_RESULT;
-
-            return (
-              <article className="submission-table__row" role="row" key={submission.id}>
-                <span className="submission-table__number" role="cell">
-                  #{submissions.length - index}
+          {submissions.map((submission) => (
+            <article className="submission-table__row" role="row" key={submission.id}>
+              <span className="submission-table__number" role="cell">
+                #{submission.id}
+              </span>
+              <span role="cell">
+                <strong>{submission.problemTitle}</strong>
+                <small>{formatSubmittedAt(submission.createdAt)}</small>
+              </span>
+              <span
+                className={`submission-status ${getVerdictTone(submission.verdict)}`}
+                role="cell"
+              >
+                {getVerdictLabel(submission.verdict)}
+              </span>
+              <span role="cell">
+                {submission.passedCount} / {submission.totalCount}
+              </span>
+              <span role="cell">
+                <span className="submission-language">
+                  {getLanguageLabel(submission.language)}
                 </span>
-                <span role="cell">
-                  <strong>{submission.problemTitle}</strong>
-                  <small>{formatSubmittedAt(submission.submittedAt)}</small>
-                </span>
-                <span
-                  className={
-                    isAccepted
-                      ? "submission-status is-accepted"
-                      : "submission-status is-failed"
-                  }
-                  role="cell"
+              </span>
+              <span role="cell">{submission.runtimeMs}ms</span>
+              <span className="submission-actions" role="cell">
+                <Link
+                  to={`/submissions/${submission.id}`}
+                  aria-label={`${submission.problemTitle} 제출 상세 보기`}
                 >
-                  {isAccepted ? "✓" : "!"} {submission.result}
-                </span>
-                <span role="cell">
-                  <span className="submission-language">{submission.language}</span>
-                </span>
-                <span role="cell">{submission.runtimeMs}ms</span>
-                <span role="cell">{formatMemory(submission.memoryKb)}</span>
-                <span className="submission-actions" role="cell">
-                  <Link
-                    to={`/submissions/${encodeURIComponent(submission.id)}`}
-                    aria-label={`${submission.problemTitle} 제출 상세 보기`}
-                  >
-                    상세
-                  </Link>
-                  <Link
-                    to={`/problems/${submission.problemId}/submit?submissionId=${encodeURIComponent(
-                      submission.id,
-                    )}`}
-                    aria-label={`${submission.problemTitle} 제출 코드 수정하기`}
-                  >
-                    수정하기
-                  </Link>
-                  {isAccepted ? (
-                    <Link
-                      to={`/code-review/new?submissionId=${encodeURIComponent(
-                        submission.id,
-                      )}`}
-                      aria-label={`${submission.problemTitle} 코드 리뷰받기`}
-                    >
-                      코드 리뷰받기
-                    </Link>
-                  ) : (
-                    <span
-                      className="submission-actions__disabled"
-                      aria-label="정답 제출만 코드 리뷰를 받을 수 있습니다."
-                    >
-                      리뷰 불가
-                    </span>
-                  )}
-                </span>
-              </article>
-            );
-          })}
+                  상세
+                </Link>
+                <Link
+                  to={`/problems/${submission.problemId}/submit?submissionId=${submission.id}`}
+                  aria-label={`${submission.problemTitle} 제출 코드 수정하기`}
+                >
+                  수정하기
+                </Link>
+              </span>
+            </article>
+          ))}
 
           {submissions.length === 0 && (
             <div className="submission-table__empty" role="row">
@@ -203,6 +173,28 @@ function ProblemSubmissionsPage() {
             </div>
           )}
         </div>
+
+        {result.totalPages > 1 && (
+          <nav className="submission-pagination" aria-label="제출 기록 페이지">
+            <button
+              type="button"
+              disabled={pageNumber <= 1}
+              onClick={() => movePage(pageNumber - 1)}
+            >
+              이전
+            </button>
+            <span>
+              {pageNumber} / {totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={pageNumber >= totalPages}
+              onClick={() => movePage(pageNumber + 1)}
+            >
+              다음
+            </button>
+          </nav>
+        )}
       </section>
     </main>
   );
