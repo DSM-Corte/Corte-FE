@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { isAuthenticated } from "../api/AuthApi";
-import { createCustomProblemSet } from "../api/ProblemSetApi";
-import { getProblemCatalog } from "../api/ProblemApi";
+import { createCustomProblemSet, getWorkbookProblemCatalog } from "../api/ProblemSetApi";
 import Button from "../components/common/Button";
 import Input from "../components/common/Input";
 import TierBadge from "../components/problems/TierBadge";
@@ -16,7 +15,6 @@ function ProblemSetCreatePage() {
   const navigate = useNavigate();
   const [problems, setProblems] = useState([]);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
   const [keyword, setKeyword] = useState("");
   const [selectedProblemIds, setSelectedProblemIds] = useState(() => new Set());
   const [message, setMessage] = useState("");
@@ -38,14 +36,14 @@ function ProblemSetCreatePage() {
     let ignore = false;
 
     async function fetchProblems() {
-      const result = await getProblemCatalog();
-
-      if (ignore) {
-        return;
+      try {
+        const result = await getWorkbookProblemCatalog();
+        if (!ignore) setProblems(result);
+      } catch (error) {
+        if (!ignore) setMessage(error.message);
+      } finally {
+        if (!ignore) setIsLoading(false);
       }
-
-      setProblems(result);
-      setIsLoading(false);
     }
 
     fetchProblems();
@@ -97,7 +95,6 @@ function ProblemSetCreatePage() {
     try {
       await createCustomProblemSet({
         title,
-        description,
         problemIds: [...selectedProblemIds],
       });
       navigate("/problem-sets");
@@ -122,7 +119,7 @@ function ProblemSetCreatePage() {
           <p className="problem-sets-hero__eyebrow">New Problem Set</p>
           <h1>직접 고른 문제로 문제집을 만드세요</h1>
           <p>
-            제목과 설명을 적고 풀고 싶은 문제를 선택하면 내 문제집 목록에 바로
+            제목을 적고 풀고 싶은 문제를 선택하면 문제집 목록에 바로
             추가됩니다.
           </p>
         </div>
@@ -138,14 +135,6 @@ function ProblemSetCreatePage() {
               onChange={(event) => setTitle(event.target.value)}
               placeholder="예: 그래프 복습 문제집"
               required
-            />
-          </label>
-          <label>
-            <span>설명</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="이 문제집을 어떤 목적으로 풀지 적어주세요."
             />
           </label>
 

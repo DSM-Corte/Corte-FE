@@ -1,80 +1,41 @@
-function renderVisibleWhitespace(value) {
-  return Array.from(value).map((character, index) => {
-    if (character === " ") {
-      return (
-        <span className="example-whitespace example-whitespace--space" key={index}>
-          {" "}
-        </span>
-      );
+import { useState } from "react";
+import { writeClipboardText } from "../../utils/clipboard";
+
+function ExampleField({ label, value }) {
+  const [status, setStatus] = useState("");
+
+  async function copy() {
+    try {
+      await writeClipboardText(value);
+      setStatus("복사됨");
+    } catch {
+      setStatus("복사 실패");
     }
-
-    if (character === "\t") {
-      return (
-        <span className="example-whitespace example-whitespace--tab" key={index}>
-          {"\t"}
-        </span>
-      );
-    }
-
-    if (character === "\n") {
-      return "\n";
-    }
-
-    return character;
-  });
-}
-
-function ExampleField({ label, value, copied, onCopy, showWhitespace = false }) {
-  const displayValue = value ?? "";
+  }
 
   return (
     <section className="example-field">
       <div className="example-field__header">
         <h4>{label}</h4>
-        <button className="example-copy" type="button" onClick={onCopy}>
-          {copied ? "복사됨" : "복사"}
+        <button className="example-copy" type="button" onClick={copy} aria-label={`${label} 복사`}>
+          <span aria-live="polite">{status || "복사"}</span>
         </button>
       </div>
-      <pre>
-        <code aria-label={displayValue}>
-          {showWhitespace
-            ? renderVisibleWhitespace(displayValue)
-            : displayValue}
-        </code>
-      </pre>
+      <pre tabIndex={0} aria-label={label}><code>{value}</code></pre>
     </section>
   );
 }
 
-function ProblemExampleList({ examples, copiedKey, onCopy }) {
+function ProblemExampleList({ examples }) {
   return (
     <div className="example-list">
-      {examples.map((example) => (
-        <section className="example-card" key={example.title}>
-          <h3>{example.title}</h3>
+      {examples.map(({ title, input, output, text }) => (
+        <section className="example-card" key={title}>
+          <h3>{title}</h3>
           <div className="example-field-list">
-            <ExampleField
-              label="Input"
-              value={example.input}
-              copied={copiedKey === `${example.title}-input`}
-              onCopy={() => onCopy(`${example.title}-input`, example.input)}
-              showWhitespace
-            />
-            <ExampleField
-              label="Output"
-              value={example.output}
-              copied={copiedKey === `${example.title}-output`}
-              onCopy={() => onCopy(`${example.title}-output`, example.output)}
-              showWhitespace
-            />
-            <ExampleField
-              label="Explanation"
-              value={example.explanation}
-              copied={copiedKey === `${example.title}-explanation`}
-              onCopy={() =>
-                onCopy(`${example.title}-explanation`, example.explanation)
-              }
-            />
+            {input !== undefined && <ExampleField label="입력" value={input} />}
+            {output !== undefined && <ExampleField label="출력" value={output} />}
+            {text !== undefined && <ExampleField label="예제 내용" value={text} />}
           </div>
         </section>
       ))}

@@ -71,6 +71,7 @@ function createEmptyPagination() {
 
 function useProblemList() {
   const [searchParams] = useSearchParams();
+  const [error, setError] = useState("");
   const [problems, setProblems] = useState([]);
   const [pagination, setPagination] = useState(createEmptyPagination());
   const [tagOptions, setTagOptions] = useState([]);
@@ -86,28 +87,42 @@ function useProblemList() {
 
   useEffect(() => {
     async function fetchTags() {
-      setTagOptions(await getProblemTags());
+      try {
+        setTagOptions(await getProblemTags(true));
+      } catch {
+        setTagOptions([]);
+      }
     }
 
     fetchTags();
   }, []);
 
   useEffect(() => {
-    async function fetchProblems() {
-      const data = await getProblemList({
-        ...filters,
-        sortKey,
-        sortDirection,
-        randomSortSeed,
-        page: currentPage,
-        pageSize,
-      });
+    let ignore = false;
 
-      setProblems(data.items);
-      setPagination(data);
+    async function fetchProblems() {
+      try {
+        const data = await getProblemList({
+          ...filters,
+          useServerCatalog: true,
+          sortKey,
+          sortDirection,
+          randomSortSeed,
+          page: currentPage,
+          pageSize,
+        });
+        if (!ignore) {
+          setProblems(data.items);
+          setPagination(data);
+          setError("");
+        }
+      } catch (error) {
+        if (!ignore) setError(error.message);
+      }
     }
 
     fetchProblems();
+    return () => { ignore = true; };
   }, [filters, sortKey, sortDirection, randomSortSeed, currentPage, pageSize]);
 
   function updateFilter(key, value) {
@@ -158,6 +173,7 @@ function useProblemList() {
   }
 
   return {
+    error,
     filters,
     pagination,
     problems,

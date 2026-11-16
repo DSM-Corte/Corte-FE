@@ -30,7 +30,7 @@ function getLanguageExtensions(language) {
   return [];
 }
 
-function CodeMirrorEditor({ value, language, onChange }) {
+function CodeMirrorEditor({ value, language, onChange, readOnly }) {
   const extensions = useMemo(
     () => [
       autocompletion({ defaultKeymap: false }),
@@ -44,6 +44,7 @@ function CodeMirrorEditor({ value, language, onChange }) {
     <div className="code-editor-shell">
       <CodeMirror
         value={value}
+        readOnly={readOnly}
         height="var(--editor-height)"
         theme={oneDark}
         extensions={extensions}

@@ -19,6 +19,8 @@ export const tierRankOptions = [
     tierGrades.map((grade) => `${group} ${grade}`),
   ),
   MASTER_TIER,
+  ...tierGrades.map((grade) => `Ruby ${grade}`),
+  "Unrated",
 ];
 
 export function createDefaultFilters() {

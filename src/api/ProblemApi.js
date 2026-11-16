@@ -2,7 +2,7 @@ import { mockProblems } from "../data/mockProblem.js";
 import { getRecommendedProblemSet } from "../data/problemSetDefinitions.js";
 import { getTierRankIndex } from "../components/problems/problemListConfig.js";
 import { getCurrentUserId } from "./AuthApi.js";
-import { getCustomProblemSets } from "./ProblemSetApi.js";
+import { getCustomProblemSet, getWorkbookProblemCatalog } from "./ProblemSetApi.js";
 import { getUserSubmissions } from "./submissionStorage.js";
 
 const sortAccessors = {
@@ -96,10 +96,7 @@ async function getProblemSetFilter(problemSetId, problems) {
     );
   }
 
-  const customProblemSets = await getCustomProblemSets();
-  const customProblemSet = customProblemSets.find(
-    (problemSet) => problemSet.id === problemSetId,
-  );
+  const customProblemSet = await getCustomProblemSet(problemSetId);
 
   if (!customProblemSet) {
     return new Set();
@@ -188,6 +185,7 @@ function paginateProblems(problems, page, pageSize) {
 
 export async function getProblemList(options = {}) {
   const {
+    useServerCatalog = false,
     keyword = "",
     tierMinIndex = "0",
     tierMaxIndex = "29",
@@ -205,7 +203,10 @@ export async function getProblemList(options = {}) {
     pageSize = DEFAULT_PROBLEM_PAGE_SIZE,
   } = options;
 
-  const userProblems = getUserProblems();
+  const useServer = useServerCatalog || Boolean(problemSetId);
+  const userProblems = useServer
+    ? await getWorkbookProblemCatalog()
+    : getUserProblems();
   const problemSetFilter = await getProblemSetFilter(problemSetId, userProblems);
 
   const filteredProblems = userProblems.filter((problem) => {
@@ -219,8 +220,8 @@ export async function getProblemList(options = {}) {
       matchesKeyword(problem, keyword) &&
       matchesTags(problem, selectedTags, tagMode) &&
       matchesStatus(problem, status) &&
-      matchesRange(problem.solvedCount, solvedMin, solvedMax) &&
-      matchesRange(problem.averageTries, averageMin, averageMax)
+      (useServer || (matchesRange(problem.solvedCount, solvedMin, solvedMax) &&
+        matchesRange(problem.averageTries, averageMin, averageMax)))
     );
   });
 
@@ -248,8 +249,9 @@ export async function getProblemCatalog() {
   return getUserProblems();
 }
 
-export async function getProblemTags() {
-  const tags = mockProblems.flatMap((problem) => problem.tags);
+export async function getProblemTags(useServerCatalog = false) {
+  const problems = useServerCatalog ? await getWorkbookProblemCatalog() : mockProblems;
+  const tags = problems.flatMap((problem) => problem.tags);
   return [...new Set(tags)].sort((a, b) => a.localeCompare(b));
 }
 

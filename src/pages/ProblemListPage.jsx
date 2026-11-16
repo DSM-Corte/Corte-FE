@@ -10,6 +10,7 @@ import "./ProblemListPage.css";
 
 function ProblemListPage() {
   const {
+    error,
     filters,
     pagination,
     problems,
@@ -75,7 +76,7 @@ function ProblemListPage() {
           sortDirection={sortDirection}
           onSort={updateSort}
         />
-        <ProblemTable problems={problems} />
+        {error ? <p role="alert">{error}</p> : <ProblemTable problems={problems} />}
         <ProblemPagination
           pagination={pagination}
           onPageChange={setCurrentPage}

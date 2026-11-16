@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { getCustomProblemSets } from "../api/ProblemSetApi";
-import { getProblemCatalog } from "../api/ProblemApi";
+import { getCustomProblemSets, getWorkbookProblemCatalog } from "../api/ProblemSetApi";
 import TierBadge from "../components/problems/TierBadge";
 import { problemSetDefinitions } from "../data/problemSetDefinitions";
 import "./ProblemSetsPage.css";
@@ -19,24 +18,27 @@ function getProgress(problems) {
 function ProblemSetsPage() {
   const [problems, setProblems] = useState([]);
   const [customProblemSets, setCustomProblemSets] = useState([]);
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     let ignore = false;
 
     async function fetchProblems() {
-      const [result, nextCustomProblemSets] = await Promise.all([
-        getProblemCatalog(),
-        getCustomProblemSets(),
-      ]);
-
-      if (ignore) {
-        return;
+      try {
+        const [result, workbooks] = await Promise.all([
+          getWorkbookProblemCatalog(),
+          getCustomProblemSets(),
+        ]);
+        if (!ignore) {
+          setProblems(result);
+          setCustomProblemSets(workbooks);
+        }
+      } catch (error) {
+        if (!ignore) setError(error.message);
+      } finally {
+        if (!ignore) setIsLoading(false);
       }
-
-      setProblems(result);
-      setCustomProblemSets(nextCustomProblemSets);
-      setIsLoading(false);
     }
 
     fetchProblems();
@@ -86,7 +88,7 @@ function ProblemSetsPage() {
       </section>
 
       <section className="problem-sets-grid" aria-label="문제집 목록">
-        {isLoading ? (
+        {error ? <p role="alert">{error}</p> : isLoading ? (
           <p className="problem-sets-empty">문제집을 불러오는 중입니다.</p>
         ) : (
           problemSets.map((problemSet) => (
@@ -95,12 +97,12 @@ function ProblemSetsPage() {
                 <div>
                   <span>{problemSet.problems.length.toLocaleString()} problems</span>
                   <h2>{problemSet.title}</h2>
-                  {problemSet.isCustom && <em>내 문제집</em>}
+                  {problemSet.isCustom && <em>사용자 문제집</em>}
                 </div>
                 <strong>{problemSet.progress}%</strong>
               </div>
 
-              <p>{problemSet.description}</p>
+              {problemSet.description && <p>{problemSet.description}</p>}
 
               <div className="problem-set-progress" aria-hidden="true">
                 <span style={{ width: `${problemSet.progress}%` }} />
