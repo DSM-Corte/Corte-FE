@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
+import { getWorkbookCatalogWithProgress } from "../api/ProblemSetApi";
 import {
   DEFAULT_PROBLEM_PAGE_SIZE,
   getProblemList,
-  getProblemTags,
 } from "../api/ProblemApi";
 import {
   createDefaultFilters,
@@ -74,7 +74,7 @@ function useProblemList() {
   const [error, setError] = useState("");
   const [problems, setProblems] = useState([]);
   const [pagination, setPagination] = useState(createEmptyPagination());
-  const [tagOptions, setTagOptions] = useState([]);
+  const [catalog, setCatalog] = useState(null);
   const [filters, setFilters] = useState(() => createInitialFilters(searchParams));
   const [searchInput, setSearchInput] = useState(searchParams.get("keyword") ?? "");
   const [sortKey, setSortKey] = useState(() => getSortKeyFromSearchParams(searchParams));
@@ -86,18 +86,15 @@ function useProblemList() {
   const [pageSize, setPageSize] = useState(DEFAULT_PROBLEM_PAGE_SIZE);
 
   useEffect(() => {
-    async function fetchTags() {
-      try {
-        setTagOptions(await getProblemTags(true));
-      } catch {
-        setTagOptions([]);
-      }
-    }
-
-    fetchTags();
+    let ignore = false;
+    getWorkbookCatalogWithProgress()
+      .then((problems) => { if (!ignore) setCatalog(problems); })
+      .catch((error) => { if (!ignore) setError(error.message); });
+    return () => { ignore = true; };
   }, []);
 
   useEffect(() => {
+    if (!catalog) return;
     let ignore = false;
 
     async function fetchProblems() {
@@ -105,6 +102,7 @@ function useProblemList() {
         const data = await getProblemList({
           ...filters,
           useServerCatalog: true,
+          serverCatalog: catalog,
           sortKey,
           sortDirection,
           randomSortSeed,
@@ -123,7 +121,7 @@ function useProblemList() {
 
     fetchProblems();
     return () => { ignore = true; };
-  }, [filters, sortKey, sortDirection, randomSortSeed, currentPage, pageSize]);
+  }, [catalog, filters, sortKey, sortDirection, randomSortSeed, currentPage, pageSize]);
 
   function updateFilter(key, value) {
     setCurrentPage(1);
@@ -180,7 +178,7 @@ function useProblemList() {
     searchInput,
     sortDirection,
     sortKey,
-    tagOptions,
+    tagOptions: [...new Set(catalog?.flatMap((problem) => problem.tags))].sort(),
     resetFilters,
     setCurrentPage,
     setSearchInput,

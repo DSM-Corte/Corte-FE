@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
-import { getCustomProblemSets, getWorkbookProblemCatalog } from "../api/ProblemSetApi";
+import { getCustomProblemSets, getWorkbookCatalogWithProgress } from "../api/ProblemSetApi";
 import TierBadge from "../components/problems/TierBadge";
 import { problemSetDefinitions } from "../data/problemSetDefinitions";
 import "./ProblemSetsPage.css";
@@ -27,7 +27,7 @@ function ProblemSetsPage() {
     async function fetchProblems() {
       try {
         const [result, workbooks] = await Promise.all([
-          getWorkbookProblemCatalog(),
+          getWorkbookCatalogWithProgress(),
           getCustomProblemSets(),
         ]);
         if (!ignore) {

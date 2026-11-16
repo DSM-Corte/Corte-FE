@@ -1,3 +1,5 @@
+import { isAuthenticated } from "./AuthApi";
+import { getMySubmissions } from "./JudgeApi";
 import { request } from "./apiClient";
 
 async function readPages(path, selectPage = (response) => response) {
@@ -37,6 +39,33 @@ export function toWorkbookProblem(problem) {
 
 export async function getWorkbookProblemCatalog() {
   return (await readPages("/api/problems")).map(toWorkbookProblem);
+}
+
+export async function getWorkbookCatalogWithProgress() {
+  const progress = new Map();
+
+  async function loadProgress() {
+    if (!isAuthenticated()) return;
+
+    let page = 0;
+    let totalPages;
+    do {
+      const result = await getMySubmissions({ page, size: 100 });
+      for (const { problemId, verdict } of result.content) {
+        const id = Number(problemId);
+        progress.set(id, verdict === "ACCEPTED" || progress.get(id) === true);
+      }
+      totalPages = result.totalPages;
+      page += 1;
+    } while (page < totalPages);
+  }
+
+  const [problems] = await Promise.all([getWorkbookProblemCatalog(), loadProgress()]);
+  return problems.map((problem) => ({
+    ...problem,
+    attempted: progress.has(Number(problem.id)),
+    solved: progress.get(Number(problem.id)) === true,
+  }));
 }
 
 export async function createCustomProblemSet({ title, problemIds }) {

@@ -2,7 +2,7 @@ import { mockProblems } from "../data/mockProblem.js";
 import { getRecommendedProblemSet } from "../data/problemSetDefinitions.js";
 import { getTierRankIndex } from "../components/problems/problemListConfig.js";
 import { getCurrentUserId } from "./AuthApi.js";
-import { getCustomProblemSet, getWorkbookProblemCatalog } from "./ProblemSetApi.js";
+import { getCustomProblemSet, getWorkbookCatalogWithProgress, getWorkbookProblemCatalog } from "./ProblemSetApi.js";
 import { getUserSubmissions } from "./submissionStorage.js";
 
 const sortAccessors = {
@@ -186,6 +186,7 @@ function paginateProblems(problems, page, pageSize) {
 export async function getProblemList(options = {}) {
   const {
     useServerCatalog = false,
+    serverCatalog,
     keyword = "",
     tierMinIndex = "0",
     tierMaxIndex = "29",
@@ -205,7 +206,7 @@ export async function getProblemList(options = {}) {
 
   const useServer = useServerCatalog || Boolean(problemSetId);
   const userProblems = useServer
-    ? await getWorkbookProblemCatalog()
+    ? (serverCatalog ?? await getWorkbookCatalogWithProgress())
     : getUserProblems();
   const problemSetFilter = await getProblemSetFilter(problemSetId, userProblems);
 
