@@ -29,8 +29,8 @@ function ProblemTable({ problems }) {
           <span className="problem-tags" role="cell">
             {problem.tags.slice(0, 2).join(", ")}
           </span>
-          <span role="cell">{problem.solvedCount.toLocaleString()}</span>
-          <span role="cell">{problem.averageTries.toFixed(2)}</span>
+          <span role="cell">—</span>
+          <span role="cell">—</span>
           <span className="problem-status" role="cell">
             {problem.solved && (
               <span className="problem-status__check" aria-label="해결 완료">

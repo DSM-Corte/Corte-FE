@@ -17,7 +17,9 @@ function ProblemListPage() {
     sortDirection,
     sortKey,
     tagOptions,
-    resetFilters: resetProblemFilters,
+    isLoading,
+    error,
+    resetFilters,
     setCurrentPage,
     setSearchInput,
     submitSearch,
@@ -25,15 +27,7 @@ function ProblemListPage() {
     updatePageSize,
     updateSort,
   } = useProblemList();
-  const [isSolvedOpen, setIsSolvedOpen] = useState(true);
-  const [isAverageOpen, setIsAverageOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
-
-  function resetFilters() {
-    resetProblemFilters();
-    setIsSolvedOpen(true);
-    setIsAverageOpen(false);
-  }
 
   return (
     <main
@@ -47,10 +41,6 @@ function ProblemListPage() {
         <ProblemFilters
           filters={filters}
           tagOptions={tagOptions}
-          isSolvedOpen={isSolvedOpen}
-          setIsSolvedOpen={setIsSolvedOpen}
-          isAverageOpen={isAverageOpen}
-          setIsAverageOpen={setIsAverageOpen}
           onCollapse={() => setIsFilterOpen(false)}
           updateFilter={updateFilter}
           resetFilters={resetFilters}
@@ -66,21 +56,27 @@ function ProblemListPage() {
           onSubmit={submitSearch}
         />
 
-        <p className="problem-count">
-          <strong>{pagination.totalCount.toLocaleString()}</strong>문제
-        </p>
+        {isLoading && <p role="status">문제를 불러오는 중입니다.</p>}
+        {error && <p role="alert">{error}</p>}
+        {!isLoading && !error && (
+          <>
+            <p className="problem-count">
+              <strong>{pagination.totalCount.toLocaleString()}</strong>문제
+            </p>
 
-        <ProblemSort
-          sortKey={sortKey}
-          sortDirection={sortDirection}
-          onSort={updateSort}
-        />
-        <ProblemTable problems={problems} />
-        <ProblemPagination
-          pagination={pagination}
-          onPageChange={setCurrentPage}
-          onPageSizeChange={updatePageSize}
-        />
+            <ProblemSort
+              sortKey={sortKey}
+              sortDirection={sortDirection}
+              onSort={updateSort}
+            />
+            <ProblemTable problems={problems} />
+            <ProblemPagination
+              pagination={pagination}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={updatePageSize}
+            />
+          </>
+        )}
       </section>
     </main>
   );

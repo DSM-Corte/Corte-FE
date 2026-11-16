@@ -19,6 +19,8 @@ export const tierRankOptions = [
     tierGrades.map((grade) => `${group} ${grade}`),
   ),
   MASTER_TIER,
+  ...tierGrades.map((grade) => `Ruby ${grade}`),
+  "Unrated",
 ];
 
 export function createDefaultFilters() {
@@ -40,8 +42,6 @@ export function createDefaultFilters() {
 export const sortOptions = [
   { key: "id", label: "ID" },
   { key: "tier", label: "티어" },
-  { key: "solvedCount", label: "푼 사람 수" },
-  { key: "averageTries", label: "평균 시도" },
   { key: "random", label: "랜덤" },
 ];
 

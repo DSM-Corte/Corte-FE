@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router";
 import {
   DEFAULT_PROBLEM_PAGE_SIZE,
   getProblemList,
-  getProblemTags,
 } from "../api/ProblemApi";
+import { applyLocalProblemProgress, fetchProblemCatalog } from "../api/ProblemReadApi";
 import {
   createDefaultFilters,
   getTierRankIndex,
@@ -73,7 +73,9 @@ function useProblemList() {
   const [searchParams] = useSearchParams();
   const [problems, setProblems] = useState([]);
   const [pagination, setPagination] = useState(createEmptyPagination());
-  const [tagOptions, setTagOptions] = useState([]);
+  const [catalog, setCatalog] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState("");
   const [filters, setFilters] = useState(() => createInitialFilters(searchParams));
   const [searchInput, setSearchInput] = useState(searchParams.get("keyword") ?? "");
   const [sortKey, setSortKey] = useState(() => getSortKeyFromSearchParams(searchParams));
@@ -85,30 +87,59 @@ function useProblemList() {
   const [pageSize, setPageSize] = useState(DEFAULT_PROBLEM_PAGE_SIZE);
 
   useEffect(() => {
-    async function fetchTags() {
-      setTagOptions(await getProblemTags());
+    const controller = new AbortController();
+
+    async function loadCatalog() {
+      try {
+        const problems = await fetchProblemCatalog(controller.signal);
+        const catalog = await applyLocalProblemProgress(problems);
+        if (!controller.signal.aborted) setCatalog(catalog);
+      } catch {
+        if (!controller.signal.aborted) {
+          setError("문제 목록을 불러오지 못했습니다.");
+          setIsLoading(false);
+        }
+      }
     }
 
-    fetchTags();
+    loadCatalog();
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
-    async function fetchProblems() {
-      const data = await getProblemList({
-        ...filters,
-        sortKey,
-        sortDirection,
-        randomSortSeed,
-        page: currentPage,
-        pageSize,
-      });
+    if (!catalog) return;
+    let active = true;
 
-      setProblems(data.items);
-      setPagination(data);
+    async function fetchProblems() {
+      try {
+        const data = await getProblemList({
+          ...filters,
+          solvedMin: "",
+          solvedMax: "",
+          averageMin: "",
+          averageMax: "",
+          sortKey,
+          sortDirection,
+          randomSortSeed,
+          page: currentPage,
+          pageSize,
+        }, catalog);
+
+        if (active) {
+          setProblems(data.items);
+          setPagination(data);
+          setError("");
+        }
+      } catch {
+        if (active) setError("문제 목록을 표시하지 못했습니다.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
     }
 
     fetchProblems();
-  }, [filters, sortKey, sortDirection, randomSortSeed, currentPage, pageSize]);
+    return () => { active = false; };
+  }, [catalog, filters, sortKey, sortDirection, randomSortSeed, currentPage, pageSize]);
 
   function updateFilter(key, value) {
     setCurrentPage(1);
@@ -164,7 +195,9 @@ function useProblemList() {
     searchInput,
     sortDirection,
     sortKey,
-    tagOptions,
+    tagOptions: [...new Set(catalog?.flatMap((problem) => problem.tags))].sort(),
+    isLoading,
+    error,
     resetFilters,
     setCurrentPage,
     setSearchInput,
