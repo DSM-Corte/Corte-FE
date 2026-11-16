@@ -151,8 +151,20 @@
   margin-top: var(--space-sm);
 }
 
+.problem-detail__main .problem-detail__section:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.problem-detail__text {
+  max-width: 72ch;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .example-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-lg);
 }
 
@@ -172,6 +184,7 @@
 
 .example-field-list {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-sm);
 }
 
@@ -224,27 +237,11 @@
   font-family: var(--font-code);
   font-size: var(--font-size-fine);
   line-height: var(--line-height-relaxed);
-  white-space: pre-wrap;
+  white-space: pre;
 }
 
 .example-field code {
   display: block;
-}
-
-.example-whitespace {
-  background: rgba(0, 102, 204, 0.14);
-}
-
-.example-whitespace--space {
-  display: inline-block;
-  width: 0.64em;
-  border-radius: var(--radius-xs);
-}
-
-.example-whitespace--tab {
-  display: inline-block;
-  min-width: 2.4em;
-  border-radius: var(--radius-xs);
 }
 
 .constraint-list {
