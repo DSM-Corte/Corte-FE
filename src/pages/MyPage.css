@@ -190,23 +190,23 @@
 }
 
 .mypage-grass__cell[data-level="1"] {
-  background: color-mix(in srgb, var(--color-success) 30%, var(--color-canvas));
+  background: color-mix(in srgb, var(--color-primary) 30%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="2"] {
-  background: color-mix(in srgb, var(--color-success) 55%, var(--color-canvas));
+  background: color-mix(in srgb, var(--color-primary) 55%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="3"] {
-  background: color-mix(in srgb, var(--color-success) 80%, var(--color-canvas));
+  background: color-mix(in srgb, var(--color-primary) 80%, var(--color-canvas));
 }
 
 .mypage-grass__cell[data-level="4"] {
-  background: var(--color-success);
+  background: var(--color-primary);
 }
 
 .mypage-grass__weeks .mypage-grass__cell:hover {
-  outline: 2px solid var(--color-primary);
+  outline: 2px solid var(--color-ink);
 }
 
 .mypage-grass-legend {

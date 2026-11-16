@@ -116,6 +116,53 @@
   --shadow-product: rgba(0, 0, 0, 0.22) 3px 5px 30px 0;
 }
 
+/* =========================
+  Accent (강조색)
+  BLUE는 위의 기본값을 쓴다. 다크 모드 강조색은 파일 끝에 있다
+========================= */
+
+:root[data-accent="red"] {
+  --color-primary: #d1242f;
+  --color-primary-focus: #e5484d;
+  --color-primary-on-dark: #ff7b72;
+}
+
+:root[data-accent="orange"] {
+  --color-primary: #c2410c;
+  --color-primary-focus: #ea580c;
+  --color-primary-on-dark: #fb923c;
+}
+
+:root[data-accent="yellow"] {
+  --color-primary: #a16207;
+  --color-primary-focus: #ca8a04;
+  --color-primary-on-dark: #facc15;
+}
+
+:root[data-accent="green"] {
+  --color-primary: #15803d;
+  --color-primary-focus: #16a34a;
+  --color-primary-on-dark: #4ade80;
+}
+
+:root[data-accent="indigo"] {
+  --color-primary: #4338ca;
+  --color-primary-focus: #4f46e5;
+  --color-primary-on-dark: #818cf8;
+}
+
+:root[data-accent="violet"] {
+  --color-primary: #7e22ce;
+  --color-primary-focus: #9333ea;
+  --color-primary-on-dark: #c084fc;
+}
+
+:root[data-accent="pink"] {
+  --color-primary: #db2777;
+  --color-primary-focus: #ec4899;
+  --color-primary-on-dark: #f472b6;
+}
+
 :root[data-theme="dark"] {
   color-scheme: dark;
 
@@ -146,4 +193,46 @@
   --color-error: #f87171;
 
   --shadow-product: rgba(0, 0, 0, 0.42) 0 18px 48px 0;
+}
+
+:root[data-theme="dark"][data-accent="red"] {
+  --color-primary: #ff7b72;
+  --color-primary-focus: #ffa198;
+  --color-primary-on-dark: #ffa198;
+}
+
+:root[data-theme="dark"][data-accent="orange"] {
+  --color-primary: #fb923c;
+  --color-primary-focus: #fdba74;
+  --color-primary-on-dark: #fdba74;
+}
+
+:root[data-theme="dark"][data-accent="yellow"] {
+  --color-primary: #facc15;
+  --color-primary-focus: #fde047;
+  --color-primary-on-dark: #fde047;
+}
+
+:root[data-theme="dark"][data-accent="green"] {
+  --color-primary: #4ade80;
+  --color-primary-focus: #86efac;
+  --color-primary-on-dark: #86efac;
+}
+
+:root[data-theme="dark"][data-accent="indigo"] {
+  --color-primary: #818cf8;
+  --color-primary-focus: #a5b4fc;
+  --color-primary-on-dark: #a5b4fc;
+}
+
+:root[data-theme="dark"][data-accent="violet"] {
+  --color-primary: #c084fc;
+  --color-primary-focus: #d8b4fe;
+  --color-primary-on-dark: #d8b4fe;
+}
+
+:root[data-theme="dark"][data-accent="pink"] {
+  --color-primary: #f472b6;
+  --color-primary-focus: #f9a8d4;
+  --color-primary-on-dark: #f9a8d4;
 }
