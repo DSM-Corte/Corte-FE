@@ -8,7 +8,7 @@
   --dark-text: #f8fafc;
   --dark-text-soft: #e5e7eb;
   --dark-muted: #94a3b8;
-  --dark-primary-soft: rgba(88, 166, 255, 0.16);
+  --dark-primary-soft: color-mix(in srgb, var(--color-primary) 16%, transparent);
   --dark-success-soft: rgba(52, 211, 153, 0.16);
   --dark-danger-soft: rgba(248, 113, 113, 0.16);
 }
@@ -194,7 +194,7 @@
 
 :root[data-theme="dark"] .main-hero__panel {
   background:
-    linear-gradient(145deg, rgba(88, 166, 255, 0.18), rgba(17, 24, 39, 0.94)),
+    linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 18%, transparent), rgba(17, 24, 39, 0.94)),
     var(--dark-surface-elevated);
 }
 
@@ -251,7 +251,7 @@
 ):focus-within {
   border-color: var(--color-primary);
   background: var(--dark-surface);
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.18);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 18%, transparent);
 }
 
 :root[data-theme="dark"] :where(.button--dark, .submission-actions button:last-child) {
@@ -441,7 +441,7 @@
   .code-review-list-item:hover,
   .leaderboard-table__row:not(.leaderboard-table__row--head):hover
 ) {
-  border-color: rgba(88, 166, 255, 0.36);
+  border-color: color-mix(in srgb, var(--color-primary) 36%, transparent);
   background: var(--dark-surface-soft);
 }
 
@@ -456,7 +456,7 @@
   .review-run-status,
   .submission-detail__test span
 ) {
-  border-color: rgba(88, 166, 255, 0.3);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
   background: var(--dark-primary-soft);
   color: var(--color-primary);
 }
@@ -466,7 +466,7 @@
   .community-selected-problem:hover,
   .code-review-selected-problem:hover
 ) {
-  background: rgba(88, 166, 255, 0.22);
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
 }
 
 :root[data-theme="dark"] :where(

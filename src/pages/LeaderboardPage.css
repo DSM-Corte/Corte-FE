@@ -103,11 +103,11 @@
 }
 
 .leaderboard-table__row.is-current-user {
-  background: rgba(0, 102, 204, 0.06);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
 }
 
 .leaderboard-table__row.is-current-user:hover {
-  background: rgba(0, 102, 204, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
 }
 
 .leaderboard-rank,

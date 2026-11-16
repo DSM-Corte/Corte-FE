@@ -182,7 +182,7 @@
 .code-review-problem-search__input:focus-within {
   border-color: var(--color-primary);
   background: var(--color-canvas);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .code-review-problem-search__input svg {
@@ -276,9 +276,9 @@
   justify-content: space-between;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid rgba(0, 102, 204, 0.16);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(0, 102, 204, 0.06);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
 }
 
 .code-review-selected-problem span,
@@ -329,7 +329,7 @@
 }
 
 .code-review-list-item:hover {
-  border-color: rgba(0, 102, 204, 0.22);
+  border-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
   background: var(--color-surface-pearl);
   transform: translateY(-1px);
 }
@@ -456,7 +456,7 @@
 .review-suggestion-form input:focus,
 .review-suggestion-form textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .code-review-submission-preview {
@@ -622,7 +622,7 @@
 }
 
 .review-line-comment--ai {
-  border-color: rgba(0, 102, 204, 0.46);
+  border-color: color-mix(in srgb, var(--color-primary) 46%, transparent);
 }
 
 .review-line-comment__header {
@@ -680,8 +680,8 @@
 }
 
 .review-info-card--ai {
-  border-color: rgba(0, 102, 204, 0.18);
-  background: linear-gradient(145deg, rgba(0, 102, 204, 0.08), var(--color-canvas));
+  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
+  background: linear-gradient(145deg, color-mix(in srgb, var(--color-primary) 8%, transparent), var(--color-canvas));
 }
 
 .review-comment-form {
@@ -793,7 +793,7 @@
 }
 
 .review-suggestion-author:hover {
-  border-color: rgba(0, 102, 204, 0.24);
+  border-color: color-mix(in srgb, var(--color-primary) 24%, transparent);
   background: var(--color-canvas);
 }
 
@@ -905,7 +905,7 @@
 .code-suggestion-form-card input:focus,
 .code-suggestion-form-card textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .review-diff-page {
@@ -1639,11 +1639,11 @@
 }
 
 .review-diff-line-block.is-active {
-  background: rgba(0, 102, 204, 0.08);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .review-diff-code-line:hover {
-  background: rgba(0, 102, 204, 0.08);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .review-line-number {

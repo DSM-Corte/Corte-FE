@@ -232,7 +232,7 @@
 }
 
 .example-whitespace {
-  background: rgba(0, 102, 204, 0.14);
+  background: color-mix(in srgb, var(--color-primary) 14%, transparent);
 }
 
 .example-whitespace--space {
