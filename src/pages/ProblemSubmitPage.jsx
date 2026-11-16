@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import {
   createExecution,
@@ -11,6 +11,7 @@ import {
   judgeLanguageOptions,
   waitForJob,
 } from "../api/JudgeApi";
+import { getAuthToken } from "../api/AuthApi";
 import { getCodeDraft, saveCodeDraft } from "../api/CodeDraftApi";
 import CodeEditorPanel from "../components/submissions/CodeEditorPanel";
 import RunnerPanel from "../components/submissions/RunnerPanel";
@@ -60,11 +61,33 @@ function ProblemSubmitPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRunning, setIsRunning] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [draftStatus, setDraftStatus] = useState("");
-  const [isSavingDraft, setIsSavingDraft] = useState(false);
-  const [isLoadingDraft, setIsLoadingDraft] = useState(false);
+  const [draft, setDraft] = useState({ status: "loading" });
+  const [draftEdit, setDraftEdit] = useState(null);
+  const [saveStatus, setSaveStatus] = useState("");
+  const savingDraft = useRef(null);
   const draftRequest = useRef(0);
   const isUnmountedRef = useRef(false);
+
+  const restoreDraft = useCallback(async (problemId, nextLanguage, fallback) => {
+    const requestId = ++draftRequest.current;
+    const token = getAuthToken();
+    setDraft({ status: "loading" });
+    setDraftEdit(null);
+    setSaveStatus("");
+
+    try {
+      await savingDraft.current?.catch(() => {});
+      if (requestId !== draftRequest.current) return;
+      if (token !== getAuthToken()) throw new Error("Session changed");
+      const saved = await getCodeDraft(problemId, nextLanguage);
+      if (requestId !== draftRequest.current) return;
+      if (token !== getAuthToken()) throw new Error("Session changed");
+      setCode(fallback ?? (saved.updatedAt == null ? getStarterCode(nextLanguage) : saved.code));
+      setDraft({ status: "ready", problemId, language: nextLanguage, token });
+    } catch {
+      if (requestId === draftRequest.current) setDraft({ status: "failed", fallback });
+    }
+  }, []);
 
   useEffect(() => {
     isUnmountedRef.current = false;
@@ -80,8 +103,9 @@ function ProblemSubmitPage() {
     async function fetchProblem() {
       setIsLoading(true);
       setLoadError("");
-      setDraftStatus("");
-      setIsLoadingDraft(false);
+      setDraft({ status: "loading" });
+      setDraftEdit(null);
+      setSaveStatus("");
 
       try {
         const [nextProblem, nextExamples, sourceSubmission] = await Promise.all([
@@ -101,19 +125,13 @@ function ProblemSubmitPage() {
         setExamples(nextExamples);
         setTerminalInput(nextExamples[0]?.input ?? "");
 
-        if (sourceSubmission && String(sourceSubmission.problemId) === String(id)) {
-          setLanguage(sourceSubmission.language);
-          setCode(sourceSubmission.code);
-        } else {
-          setLanguage(DEFAULT_LANGUAGE);
-          setCode(getStarterCode(DEFAULT_LANGUAGE));
-          try {
-            const draft = await getCodeDraft(id, DEFAULT_LANGUAGE);
-            if (!ignore && draft.updatedAt != null) setCode(draft.code);
-          } catch {
-            if (!ignore) setDraftStatus("임시저장 코드를 불러오지 못했습니다.");
-          }
-        }
+        const previous = String(sourceSubmission?.problemId) === String(id)
+          ? sourceSubmission
+          : null;
+        const nextLanguage = previous?.language ?? DEFAULT_LANGUAGE;
+        setLanguage(nextLanguage);
+        setCode(previous?.code ?? getStarterCode(nextLanguage));
+        await restoreDraft(id, nextLanguage, previous?.code);
       } catch (error) {
         if (ignore) {
           return;
@@ -146,7 +164,7 @@ function ProblemSubmitPage() {
       ignore = true;
       draftRequest.current += 1;
     };
-  }, [id, navigate, sourceSubmissionId]);
+  }, [id, navigate, restoreDraft, sourceSubmissionId]);
 
   function handleActionError(error) {
     if (error.code === "CANCELLED") {
@@ -175,34 +193,51 @@ function ProblemSubmitPage() {
     setMessage("");
   }
 
-  async function handleLanguageChange(nextLanguage) {
-    const requestId = ++draftRequest.current;
+  const draftReady = draft.status === "ready" &&
+    draft.problemId === id && draft.language === language;
+
+  useEffect(() => {
+    if (!draftReady || !draftEdit) return;
+
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      await savingDraft.current?.catch(() => {});
+      if (!active) return;
+      if (draft.token !== getAuthToken()) {
+        setSaveStatus("다시 로그인한 뒤 임시저장할 수 있습니다.");
+        return;
+      }
+
+      setSaveStatus("임시저장 중…");
+      const request = saveCodeDraft(id, language, draftEdit.code);
+      savingDraft.current = request;
+      try {
+        await request;
+        if (active) setSaveStatus("임시저장 완료");
+      } catch {
+        if (active) setSaveStatus("임시저장 실패");
+      } finally {
+        if (savingDraft.current === request) savingDraft.current = null;
+      }
+    }, Math.max(0, draftEdit.at + 2000 - Date.now()));
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [draft, draftEdit, draftReady, id, language]);
+
+  function handleLanguageChange(nextLanguage) {
     setLanguage(nextLanguage);
     setCode(getStarterCode(nextLanguage));
-    setDraftStatus("");
-    setIsLoadingDraft(true);
-    try {
-      const draft = await getCodeDraft(id, nextLanguage);
-      if (requestId === draftRequest.current && draft.updatedAt != null) setCode(draft.code);
-    } catch {
-      if (requestId === draftRequest.current) setDraftStatus("임시저장 코드를 불러오지 못했습니다.");
-    } finally {
-      if (requestId === draftRequest.current) setIsLoadingDraft(false);
-    }
+    restoreDraft(id, nextLanguage);
   }
 
-  async function handleSaveDraft() {
-    const requestId = draftRequest.current;
-    setIsSavingDraft(true);
-    setDraftStatus("");
-    try {
-      await saveCodeDraft(id, language, code);
-      if (requestId === draftRequest.current) setDraftStatus("임시저장 완료");
-    } catch (error) {
-      if (requestId === draftRequest.current) setDraftStatus(error.message);
-    } finally {
-      setIsSavingDraft(false);
-    }
+  function handleCodeChange(value) {
+    if (!draftReady || value === code) return;
+    setCode(value);
+    setSaveStatus("저장 대기 중…");
+    setDraftEdit({ code: value, at: Date.now() });
   }
 
   async function runOnce(stdin) {
@@ -387,13 +422,17 @@ function ProblemSubmitPage() {
           languageOptions={judgeLanguageOptions}
           isRunning={isRunning}
           isSubmitting={isSubmitting}
-          onChangeCode={(value) => {
-            setCode(value);
-            setDraftStatus("");
-          }}
-          draftStatus={draftStatus}
-          draftBusy={isLoadingDraft || isSavingDraft}
-          onSaveDraft={handleSaveDraft}
+          onChangeCode={handleCodeChange}
+          draftStatus={draft.status === "failed"
+            ? "임시저장 코드를 불러오지 못했습니다. 다시 불러온 뒤 편집할 수 있습니다."
+            : draft.status === "loading" ? "임시저장 불러오는 중…" : saveStatus}
+          draftBusy={draft.status === "loading"}
+          draftReadOnly={!draftReady}
+          draftLanguageLocked={saveStatus === "저장 대기 중…" || saveStatus === "임시저장 중…"}
+          onRetryDraft={draft.status === "failed" ? () => restoreDraft(id, language, draft.fallback) : undefined}
+          onRetrySave={saveStatus === "임시저장 실패"
+            ? () => setDraftEdit({ code, at: Date.now() - 2000 })
+            : undefined}
           onChangeLanguage={handleLanguageChange}
           onRunExamples={handleRun}
           onSubmit={handleSubmit}

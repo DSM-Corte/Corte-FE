@@ -45,6 +45,7 @@ function CodeMirrorEditor({ value, language, onChange, readOnly }) {
       <CodeMirror
         value={value}
         readOnly={readOnly}
+        editable={!readOnly}
         height="var(--editor-height)"
         theme={oneDark}
         extensions={extensions}
