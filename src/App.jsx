@@ -5,7 +5,6 @@ import Header from "./components/layout/Header";
 import CodeReviewPage from "./pages/CodeReviewPage";
 import CodeReviewCreatePage from "./pages/CodeReviewCreatePage";
 import CodeReviewDetailPage from "./pages/CodeReviewDetailPage";
-import CodeReviewSuggestionPage from "./pages/CodeReviewSuggestionPage";
 import CommunityListPage from "./pages/CommunityListPage";
 import CommunityPostDetailPage from "./pages/CommunityPostDetailPage";
 import CommunityWritePage from "./pages/CommunityWritePage";
@@ -81,14 +80,6 @@ function AppRoutes({ theme, onToggleTheme }) {
           element={
             <ProtectedRoute message="코드 리뷰를 작성하려면 먼저 로그인해주세요.">
               <CodeReviewCreatePage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/code-review/:id/suggestions/new"
-          element={
-            <ProtectedRoute message="코드 제안을 작성하려면 먼저 로그인해주세요.">
-              <CodeReviewSuggestionPage />
             </ProtectedRoute>
           }
         />

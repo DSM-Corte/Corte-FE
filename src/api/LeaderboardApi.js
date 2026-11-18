@@ -3,7 +3,6 @@ import {
   tierRankOptions,
 } from "../components/problems/problemListConfig";
 import { mockProblems } from "../data/mockProblem";
-import { getAcceptedSuggestionRewardXp } from "./CodeReviewApi";
 import { getCurrentUser, getCurrentUserId } from "./AuthApi";
 import { ACCEPTED_RESULT } from "./SubmissionApi";
 import { getStoredSubmissions } from "./submissionStorage";
@@ -232,7 +231,7 @@ function getCurrentUserLeaderboardEntry(currentUser) {
   const xp = acceptedProblemIds.reduce(
     (sum, problemId) => sum + getProblemXp(problemId),
     0,
-  ) + getAcceptedSuggestionRewardXp(userId);
+  );
   const solvedCount = acceptedProblemIds.length;
   const submissionCount = userSubmissions.length;
 
