@@ -337,6 +337,29 @@ export async function getCodeReviewList({ problemId } = {}) {
   return filteredReviews;
 }
 
+export function getMyReviewActivity() {
+  const userId = getCurrentUserId();
+  if (!userId) return { requests: [], reviews: [], comments: [] };
+  const mine = (item) => String(item.authorId) === String(userId);
+  const activity = { requests: [], reviews: [], comments: [] };
+
+  for (const review of getStoredReviews()) {
+    const context = { reviewId: review.id, reviewTitle: review.title };
+    if (mine(review)) activity.requests.push({ ...review, ...context });
+    for (const suggestion of review.suggestions) {
+      if (mine(suggestion)) activity.reviews.push({ ...suggestion, ...context });
+    }
+    for (const comment of review.comments) {
+      if (mine(comment)) activity.comments.push({ ...comment, ...context });
+    }
+  }
+
+  for (const items of Object.values(activity)) {
+    items.sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
+  }
+  return activity;
+}
+
 export async function getCodeReviewById(id) {
   await delay();
 
