@@ -161,6 +161,14 @@ function ProblemSubmissionsPage() {
                 >
                   수정하기
                 </Link>
+                {submission.verdict === "ACCEPTED" && (
+                  <Link
+                    to={`/code-review/new?submissionId=${submission.id}`}
+                    aria-label={`${submission.problemTitle} 리뷰 요청하기`}
+                  >
+                    리뷰 요청
+                  </Link>
+                )}
               </span>
             </article>
           ))}

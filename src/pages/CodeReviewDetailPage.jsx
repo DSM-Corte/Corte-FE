@@ -1,32 +1,33 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { getCurrentUserId } from "../api/AuthApi";
 import {
-  acceptCodeReviewSuggestion,
-  addCodeReviewComment,
-  CODE_REVIEW_UPDATED_EVENT,
-  ensureCodeReviewGenerated,
-  getCodeReviewById,
-  recommendCodeReviewSuggestion,
-  setCodeReviewClosed,
+  applyLineComment,
+  closeReviewRequest,
+  createComment,
+  createLineComment,
+  createReply,
+  deleteComment,
+  deleteLineComment,
+  deleteReply,
+  getComments,
+  getLineComments,
+  getReviewRequest,
+  updateComment,
+  updateLineComment,
+  updateReply,
 } from "../api/CodeReviewApi";
-import { getProblemById } from "../api/ProblemApi";
-import { runTerminalCode } from "../api/SubmissionApi";
+import {
+  createExecution,
+  getLanguageLabel,
+  getVerdictLabel,
+  waitForJob,
+} from "../api/JudgeApi";
 import MarkdownPreview from "../components/community/MarkdownPreview";
 import Button from "../components/common/Button";
-import ExecutionTerminal from "../components/submissions/ExecutionTerminal";
 import "./CodeReviewPage.css";
 
-function createTerminalLine(type, text) {
-  return { type, text };
-}
-
-function createInitialTerminalLines(targetLabel = "code") {
-  return [
-    createTerminalLine("system", `COTRE ${targetLabel} terminal ready.`),
-    createTerminalLine("muted", "stdin을 직접 입력하고 코드를 실행해볼 수 있습니다."),
-  ];
-}
+const NOT_FOUND_CODES = ["R001"];
 
 function createDiffRows(originalCode, suggestedCode) {
   const originalLines = String(originalCode ?? "").split("\n");
@@ -57,38 +58,6 @@ function createDiffRows(originalCode, suggestedCode) {
   }
 
   return rows;
-}
-
-function getSuggestionAuthor(suggestion, review) {
-  const authorId =
-    suggestion.authorId ||
-    (suggestion.authorType === "ai" ? "ai-cotre" : review.authorId);
-
-  return {
-    id: authorId,
-    name:
-      suggestion.authorName ||
-      (suggestion.authorType === "ai" ? "COTRE Review" : review.authorName),
-    type: suggestion.authorType === "ai" ? "COTRE" : "User",
-  };
-}
-
-function getSourceFileName(review) {
-  const extension = review.language === "python" ? "py" : "js";
-
-  return `solutions/${review.problemId}-${review.problemTitle}.${extension}`;
-}
-
-function formatLanguage(language) {
-  if (language === "javascript") {
-    return "JavaScript";
-  }
-
-  if (language === "python") {
-    return "Python";
-  }
-
-  return language;
 }
 
 const keywordPatternByLanguage = {
@@ -141,114 +110,283 @@ function renderHighlightedCode(line, language) {
   });
 }
 
-const REVIEW_COLLAPSE_STORAGE_PREFIX = "cotre_code_review_collapse";
 
-function getReviewCollapseStorageKey(reviewId) {
-  return `${REVIEW_COLLAPSE_STORAGE_PREFIX}:${reviewId}`;
-}
-
-function createEmptyCollapseState() {
-  return {
-    lines: new Set(),
-    comments: new Set(),
-  };
-}
-
-function readReviewCollapseState(reviewId) {
-  if (!reviewId) {
-    return createEmptyCollapseState();
+function redirectIfExpired(error, navigate, id) {
+  if (error.status !== 401) {
+    return false;
   }
 
-  try {
-    const rawState = window.localStorage.getItem(getReviewCollapseStorageKey(reviewId));
+  navigate("/login", {
+    replace: true,
+    state: { from: `/code-review/${id}`, message: "로그인이 만료되었습니다. 다시 로그인해주세요." },
+  });
+  return true;
+}
 
-    if (!rawState) {
-      return createEmptyCollapseState();
+function isMine(item, currentUserId) {
+  return currentUserId !== "" && String(item.authorId) === String(currentUserId);
+}
+
+// 답글 목록: 쓴 사람만 수정·삭제하고 닫힌 요청에서는 모두 읽기 전용이다
+function ReplyList({ replies, currentUserId, disabled, onUpdate, onDelete }) {
+  const [editingId, setEditingId] = useState(null);
+  const [draft, setDraft] = useState("");
+
+  return replies.map((reply) => (
+    <div className="review-line-comment__reply" key={reply.id}>
+      <strong>{reply.author}</strong>
+      {editingId === reply.id ? (
+        <>
+          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} />
+          <div>
+            <Button
+              type="button"
+              size="small"
+              onClick={async () => {
+                if (await onUpdate(reply.id, draft)) {
+                  setEditingId(null);
+                }
+              }}
+            >
+              저장
+            </Button>
+            <Button type="button" variant="pearl" size="small" onClick={() => setEditingId(null)}>
+              취소
+            </Button>
+          </div>
+        </>
+      ) : (
+        <>
+          <MarkdownPreview markdown={reply.content} />
+          {isMine(reply, currentUserId) && !disabled && (
+            <div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingId(reply.id);
+                  setDraft(reply.content);
+                }}
+              >
+                수정
+              </button>
+              <button type="button" onClick={() => onDelete(reply.id)}>
+                삭제
+              </button>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  ));
+}
+
+// 줄 코멘트·전체 댓글 공통 카드. 줄 코멘트만 suggestedCode와 적용 버튼이 있다
+function CommentCard({
+  item,
+  isLine,
+  isRequester,
+  isClosed,
+  currentUserId,
+  onUpdate,
+  onDelete,
+  onReply,
+  onReplyUpdate,
+  onReplyDelete,
+  onApply,
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [draft, setDraft] = useState(item.content);
+  const [suggestionDraft, setSuggestionDraft] = useState(item.suggestedCode ?? "");
+  const [replyDraft, setReplyDraft] = useState("");
+  const [isReplying, setIsReplying] = useState(false);
+
+  async function saveEdit() {
+    const saved = await onUpdate(
+      item.id,
+      isLine ? { content: draft, suggestedCode: suggestionDraft } : draft,
+    );
+
+    if (saved) {
+      setIsEditing(false);
     }
-
-    const parsedState = JSON.parse(rawState);
-    const lines = Array.isArray(parsedState.lines) ? parsedState.lines : [];
-    const comments = Array.isArray(parsedState.comments) ? parsedState.comments : [];
-
-    return {
-      lines: new Set(
-        lines.map((line) => Number(line)).filter((line) => Number.isFinite(line)),
-      ),
-      comments: new Set(comments.map((commentId) => String(commentId)).filter(Boolean)),
-    };
-  } catch {
-    window.localStorage.removeItem(getReviewCollapseStorageKey(reviewId));
-    return createEmptyCollapseState();
-  }
-}
-
-function saveReviewCollapseState(reviewId, { lines, comments }) {
-  if (!reviewId) {
-    return;
   }
 
-  window.localStorage.setItem(
-    getReviewCollapseStorageKey(reviewId),
-    JSON.stringify({
-      lines: [...lines],
-      comments: [...comments],
-    }),
+  async function submitReply(event) {
+    event.preventDefault();
+
+    if (await onReply(item.id, replyDraft)) {
+      setReplyDraft("");
+      setIsReplying(false);
+    }
+  }
+
+  return (
+    <article className="review-line-comment">
+      <header className="review-line-comment__header">
+        <strong>{item.author}</strong>
+        {isMine(item, currentUserId) && !isClosed && !isEditing && (
+          <span>
+            <button type="button" onClick={() => setIsEditing(true)}>
+              수정
+            </button>
+            <button type="button" onClick={() => onDelete(item.id)}>
+              삭제
+            </button>
+          </span>
+        )}
+      </header>
+
+      {isEditing ? (
+        <div className="review-line-comment__body">
+          <textarea value={draft} onChange={(event) => setDraft(event.target.value)} />
+          {isLine && (
+            <textarea
+              value={suggestionDraft}
+              onChange={(event) => setSuggestionDraft(event.target.value)}
+              placeholder="이 줄을 대체할 제안 코드 (선택)"
+            />
+          )}
+          <Button type="button" size="small" onClick={saveEdit}>
+            저장
+          </Button>
+          <Button type="button" variant="pearl" size="small" onClick={() => setIsEditing(false)}>
+            취소
+          </Button>
+        </div>
+      ) : (
+        <div className="review-line-comment__body">
+          <MarkdownPreview markdown={item.content} />
+          {isLine && item.suggestedCode && (
+            <>
+              <pre className="review-line-comment__suggestion">
+                <code>{item.suggestedCode}</code>
+              </pre>
+              {isRequester && (
+                <Button
+                  type="button"
+                  variant="pearl"
+                  size="small"
+                  onClick={() => onApply(item.id)}
+                >
+                  이 제안 적용해보기
+                </Button>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <ReplyList
+        replies={item.replies ?? []}
+        currentUserId={currentUserId}
+        disabled={isClosed}
+        onUpdate={onReplyUpdate}
+        onDelete={onReplyDelete}
+      />
+
+      {!isClosed &&
+        (isReplying ? (
+          <form onSubmit={submitReply}>
+            <textarea
+              value={replyDraft}
+              onChange={(event) => setReplyDraft(event.target.value)}
+              placeholder="답글을 입력하세요"
+              autoFocus
+            />
+            <Button type="submit" size="small">
+              답글
+            </Button>
+            <Button type="button" variant="pearl" size="small" onClick={() => setIsReplying(false)}>
+              취소
+            </Button>
+          </form>
+        ) : (
+          <button type="button" onClick={() => setIsReplying(true)}>
+            답글 달기
+          </button>
+        ))}
+    </article>
   );
 }
 
 function CodeReviewDetailPage() {
   const { id } = useParams();
-  const initialCollapseState = readReviewCollapseState(id);
-  const [review, setReview] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeLine, setActiveLine] = useState(null);
-  const [collapsedCommentLines, setCollapsedCommentLines] = useState(
-    () => initialCollapseState.lines,
-  );
-  const [collapsedCommentIds, setCollapsedCommentIds] = useState(
-    () => initialCollapseState.comments,
-  );
-  const [lineComment, setLineComment] = useState("");
-  const [lineCommentViewMode, setLineCommentViewMode] = useState("editor");
-  const [message, setMessage] = useState("");
-  const [defaultTerminalInput, setDefaultTerminalInput] = useState("");
-  const [terminalInput, setTerminalInput] = useState("");
-  const [terminalLines, setTerminalLines] = useState(() =>
-    createInitialTerminalLines(),
-  );
-  const [terminalTarget, setTerminalTarget] = useState(null);
-  const [isTerminalRunning, setIsTerminalRunning] = useState(false);
+  const navigate = useNavigate();
   const currentUserId = getCurrentUserId();
+  const [review, setReview] = useState(null);
+  const [lineComments, setLineComments] = useState([]);
+  const [comments, setComments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [notFound, setNotFound] = useState(false);
+  const [message, setMessage] = useState("");
+  const [activeLine, setActiveLine] = useState(null);
+  const [lineContent, setLineContent] = useState("");
+  const [lineSuggestion, setLineSuggestion] = useState("");
+  const [lineViewMode, setLineViewMode] = useState("editor");
+  const [commentContent, setCommentContent] = useState("");
+  const [applied, setApplied] = useState(null);
+  const [stdin, setStdin] = useState("");
+  const [runResult, setRunResult] = useState(null);
+  const [isRunning, setIsRunning] = useState(false);
 
-  useEffect(() => {
-    const timerId = window.setTimeout(() => {
-      const savedState = readReviewCollapseState(id);
+  const isClosed = Boolean(review?.closed);
+  const isRequester = review ? isMine({ authorId: review.requesterId }, currentUserId) : false;
 
-      setCollapsedCommentLines(savedState.lines);
-      setCollapsedCommentIds(savedState.comments);
-    }, 0);
+  function handleError(error) {
+    if (!redirectIfExpired(error, navigate, id)) {
+      setMessage(error.message);
+    }
+  }
 
-    return () => {
-      window.clearTimeout(timerId);
-    };
-  }, [id]);
+  async function loadThreads() {
+    const [nextLineComments, nextComments] = await Promise.all([
+      getLineComments(id),
+      getComments(id, { size: 100 }),
+    ]);
+
+    setLineComments(nextLineComments);
+    setComments(nextComments.content);
+  }
 
   useEffect(() => {
     let ignore = false;
 
     async function fetchReview() {
-      const nextReview = await getCodeReviewById(id);
-      const nextProblem = nextReview
-        ? await getProblemById(nextReview.problemId)
-        : undefined;
+      setIsLoading(true);
+      setNotFound(false);
+      setApplied(null);
 
-      if (ignore) {
-        return;
+      try {
+        const nextReview = await getReviewRequest(id);
+        const [nextLineComments, nextComments] = await Promise.all([
+          getLineComments(id),
+          getComments(id, { size: 100 }),
+        ]);
+
+        if (ignore) {
+          return;
+        }
+
+        setReview(nextReview);
+        setLineComments(nextLineComments);
+        setComments(nextComments.content);
+      } catch (error) {
+        if (ignore) {
+          return;
+        }
+
+        if (error.status === 404 || NOT_FOUND_CODES.includes(error.code)) {
+          setNotFound(true);
+        } else {
+          if (!redirectIfExpired(error, navigate, id)) {
+            setMessage(error.message);
+          }
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
-
-      setReview(nextReview);
-      setDefaultTerminalInput(nextProblem?.detail.examples[0]?.input ?? "");
-      setIsLoading(false);
     }
 
     fetchReview();
@@ -256,256 +394,170 @@ function CodeReviewDetailPage() {
     return () => {
       ignore = true;
     };
-  }, [id]);
+  }, [id, navigate]);
 
-  useEffect(() => {
-    let ignore = false;
+  const codeLines = useMemo(() => {
+    const lines = String(review?.code ?? "").split("\n");
 
-    async function handleReviewUpdate() {
-      const nextReview = await getCodeReviewById(id);
-
-      if (!ignore) {
-        setReview(nextReview);
-      }
+    // 서버는 마지막 줄바꿈 뒤의 빈 줄을 세지 않는다
+    if (lines.length > 1 && lines[lines.length - 1] === "") {
+      lines.pop();
     }
 
-    window.addEventListener(CODE_REVIEW_UPDATED_EVENT, handleReviewUpdate);
-
-    return () => {
-      ignore = true;
-      window.removeEventListener(CODE_REVIEW_UPDATED_EVENT, handleReviewUpdate);
-    };
-  }, [id]);
-
-  useEffect(() => {
-    if (review?.generationStatus === "generating") {
-      void ensureCodeReviewGenerated(review.id);
-    }
-  }, [review?.generationStatus, review?.id]);
-
-  const codeLines = useMemo(() => String(review?.code ?? "").split("\n"), [review]);
-  const commentsByLine = useMemo(() => {
-    return (review?.comments ?? []).reduce((groups, item) => {
-      const key = Number(item.line);
-      groups.set(key, [...(groups.get(key) ?? []), item]);
-      return groups;
-    }, new Map());
+    return lines;
   }, [review]);
 
+  const commentsByLine = useMemo(() => {
+    return lineComments.reduce((groups, item) => {
+      groups.set(item.lineNumber, [...(groups.get(item.lineNumber) ?? []), item]);
+      return groups;
+    }, new Map());
+  }, [lineComments]);
+
+  // 모든 변경은 같은 형태로 실행하고 성공하면 목록을 다시 불러온다
+  async function mutate(action) {
+    setMessage("");
+
+    try {
+      await action();
+      await loadThreads();
+      return true;
+    } catch (error) {
+      handleError(error);
+      return false;
+    }
+  }
+
   function openLineComment(lineNumber) {
-    if (review?.isClosed) {
+    if (isClosed) {
       setMessage("닫힌 리뷰에는 새 코멘트를 추가할 수 없습니다.");
       return;
     }
 
-    setActiveLine(lineNumber);
-    setLineComment("");
-    setLineCommentViewMode("editor");
-    setMessage("");
-  }
-
-  function handleCodeLineKeyDown(event, lineNumber) {
-    if (event.key !== "Enter" && event.key !== " ") {
+    if (isRequester) {
+      setMessage("요청자는 코멘트를 작성할 수 없습니다. 답글로 이야기를 이어가세요.");
       return;
     }
 
-    event.preventDefault();
-    openLineComment(lineNumber);
+    setActiveLine(lineNumber);
+    setLineContent("");
+    setLineSuggestion("");
+    setLineViewMode("editor");
+    setMessage("");
   }
 
   function closeLineComment() {
     setActiveLine(null);
-    setLineComment("");
-    setLineCommentViewMode("editor");
-  }
-
-  function toggleCommentThread(lineNumber) {
-    setCollapsedCommentLines((currentLines) => {
-      const nextLines = new Set(currentLines);
-
-      if (nextLines.has(lineNumber)) {
-        nextLines.delete(lineNumber);
-      } else {
-        nextLines.add(lineNumber);
-      }
-
-      saveReviewCollapseState(id, {
-        lines: nextLines,
-        comments: collapsedCommentIds,
-      });
-      return nextLines;
-    });
-  }
-
-  function toggleInlineComment(commentId) {
-    setCollapsedCommentIds((currentIds) => {
-      const nextIds = new Set(currentIds);
-
-      if (nextIds.has(commentId)) {
-        nextIds.delete(commentId);
-      } else {
-        nextIds.add(commentId);
-      }
-
-      saveReviewCollapseState(id, {
-        lines: collapsedCommentLines,
-        comments: nextIds,
-      });
-      return nextIds;
-    });
   }
 
   async function handleAddLineComment(event) {
     event.preventDefault();
+
+    const saved = await mutate(() =>
+      createLineComment(id, {
+        lineNumber: activeLine,
+        content: lineContent,
+        suggestedCode: lineSuggestion,
+      }),
+    );
+
+    if (saved) {
+      closeLineComment();
+    }
+  }
+
+  async function handleAddComment(event) {
+    event.preventDefault();
+
+    if (await mutate(() => createComment(id, commentContent))) {
+      setCommentContent("");
+    }
+  }
+
+  async function handleClose() {
+    if (!window.confirm("리뷰를 닫으면 다시 열 수 없습니다. 닫을까요?")) {
+      return;
+    }
+
     setMessage("");
 
-    if (!activeLine) {
-      return;
-    }
-
     try {
-      const nextReview = await addCodeReviewComment(id, {
-        line: activeLine,
-        body: lineComment,
-      });
-      setReview(nextReview);
-      setCollapsedCommentLines((currentLines) => {
-        const nextLines = new Set(currentLines);
-        nextLines.delete(activeLine);
-        saveReviewCollapseState(id, {
-          lines: nextLines,
-          comments: collapsedCommentIds,
-        });
-        return nextLines;
-      });
+      await closeReviewRequest(id);
+      setReview({ ...review, closed: true });
       closeLineComment();
+      setMessage("리뷰를 닫았습니다.");
     } catch (error) {
-      setMessage(error.message);
+      handleError(error);
     }
   }
 
-  function openOriginalTerminal() {
-    if (!review) {
-      return;
-    }
-
-    setTerminalTarget({
-      type: "original",
-      title: "원본 코드",
-      code: review.code,
-      command: "run-original",
-      label: "original code",
-    });
-    setTerminalInput(defaultTerminalInput);
-    setTerminalLines(createInitialTerminalLines("original code"));
-  }
-
-  function openSuggestionTerminal(suggestion) {
-    setTerminalTarget({
-      type: "suggestion",
-      title: suggestion.title,
-      code: suggestion.code,
-      command: "run-suggestion",
-      label: "suggestion",
-    });
-    setTerminalInput(defaultTerminalInput);
-    setTerminalLines(createInitialTerminalLines("suggestion"));
-  }
-
-  function closeTerminal() {
-    if (isTerminalRunning) {
-      return;
-    }
-
-    setTerminalTarget(null);
-  }
-
-  function resetTerminal() {
-    setTerminalLines(createInitialTerminalLines(terminalTarget?.label));
-  }
-
-  function appendTerminalLines(lines) {
-    setTerminalLines((currentLines) => [...currentLines, ...lines]);
-  }
-
-  async function handleRunTerminal() {
-    if (!review || !terminalTarget) {
-      return;
-    }
-
-    setIsTerminalRunning(true);
-
-    appendTerminalLines([
-      createTerminalLine(
-        "command",
-        `cotre ${terminalTarget.command} --language ${review.language} --problem ${review.problemId}`,
-      ),
-      createTerminalLine("label", "stdin"),
-      createTerminalLine("input", terminalInput || "(빈 입력)"),
-    ]);
+  async function handleApply(commentId) {
+    setMessage("");
 
     try {
-      const result = await runTerminalCode({
+      const code = await applyLineComment(id, commentId);
+      setApplied({ commentId, code });
+      setRunResult(null);
+    } catch (error) {
+      handleError(error);
+    }
+  }
+
+  // 적용한 코드를 기존 실행 API로 돌린다. 서버에 저장되는 것은 없다
+  async function handleRunApplied() {
+    if (!applied || isRunning) {
+      return;
+    }
+
+    setIsRunning(true);
+    setRunResult(null);
+    setMessage("");
+
+    try {
+      const execution = await createExecution({
         problemId: review.problemId,
         language: review.language,
-        code: terminalTarget.code,
-        input: terminalInput,
+        code: applied.code,
+        stdin,
       });
-
-      appendTerminalLines([
-        createTerminalLine("label", "stdout"),
-        createTerminalLine("output", result.output || "(출력 없음)"),
-        createTerminalLine("success", `finished in ${result.runtimeMs}ms`),
-      ]);
+      setRunResult(await waitForJob("execution", execution.id));
     } catch (error) {
-      appendTerminalLines([
-        createTerminalLine("error", error.message),
-        createTerminalLine("muted", "코드나 입력값을 확인하고 다시 실행해보세요."),
-      ]);
+      handleError(error);
     } finally {
-      setIsTerminalRunning(false);
+      setIsRunning(false);
     }
   }
 
-  async function handleRecommendSuggestion(suggestionId) {
-    setMessage("");
-
-    try {
-      setReview(await recommendCodeReviewSuggestion(id, suggestionId));
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function handleAcceptSuggestion(suggestionId) {
-    setMessage("");
-
-    try {
-      setReview(await acceptCodeReviewSuggestion(id, suggestionId));
-      setMessage("코드 제안을 채택했습니다.");
-    } catch (error) {
-      setMessage(error.message);
-    }
-  }
-
-  async function handleReviewStatusToggle() {
-    setMessage("");
-
-    try {
-      const nextReview = await setCodeReviewClosed(id, !review.isClosed);
-      setReview(nextReview);
-      closeLineComment();
-      setMessage(nextReview.isClosed ? "코드 리뷰를 닫았습니다." : "코드 리뷰를 다시 열었습니다.");
-    } catch (error) {
-      setMessage(error.message);
-    }
+  function renderThread(isLine, items, kind) {
+    return items.map((item) => (
+      <CommentCard
+        key={item.id}
+        item={item}
+        isLine={isLine}
+        isRequester={isRequester}
+        isClosed={isClosed}
+        currentUserId={currentUserId}
+        onUpdate={(commentId, value) =>
+          mutate(() =>
+            isLine ? updateLineComment(id, commentId, value) : updateComment(id, commentId, value),
+          )
+        }
+        onDelete={(commentId) =>
+          mutate(() => (isLine ? deleteLineComment(id, commentId) : deleteComment(id, commentId)))
+        }
+        onReply={(commentId, content) => mutate(() => createReply(id, kind, commentId, content))}
+        onReplyUpdate={(replyId, content) => mutate(() => updateReply(id, replyId, content))}
+        onReplyDelete={(replyId) => mutate(() => deleteReply(id, replyId))}
+        onApply={handleApply}
+      />
+    ));
   }
 
   if (isLoading) {
     return <main className="code-review-state">코드 리뷰를 불러오는 중입니다.</main>;
   }
 
-  if (!review) {
+  if (notFound || !review) {
     return (
       <main className="code-review-state">
         <p>코드 리뷰를 찾을 수 없습니다.</p>
@@ -514,8 +566,7 @@ function CodeReviewDetailPage() {
     );
   }
 
-  const isGeneratingReview = review.generationStatus === "generating";
-  const canManageReview = !review.authorId || review.authorId === currentUserId;
+  const highlightLanguage = review.language === "PYTHON" ? "python" : "javascript";
 
   return (
     <main className="code-review-detail-page review-diff-page">
@@ -526,95 +577,64 @@ function CodeReviewDetailPage() {
           </Link>
           <div>
             <p>
-              #{review.problemId} {review.problemTitle}
+              #{review.problemId} · {review.requester}
             </p>
-            <h1>{review.title}</h1>
+            <h1>{review.problemTitle}</h1>
           </div>
         </div>
 
         <div className="review-diff-header__actions">
-          <Button
-            type="button"
-            variant="pearl"
-            size="small"
-            onClick={openOriginalTerminal}
-          >
-            실행
-          </Button>
-          <span
-            className={`review-status-pill ${
-              review.isClosed ? "review-status-pill--closed" : ""
-            }`.trim()}
-          >
-            {review.isClosed ? "닫힘" : "열림"}
+          <span className={`review-status-pill ${isClosed ? "review-status-pill--closed" : ""}`.trim()}>
+            {isClosed ? "닫힘" : "열림"}
           </span>
-          {canManageReview && (
-            <Button
-              type="button"
-              variant={review.isClosed ? "primary" : "pearl"}
-              size="small"
-              onClick={handleReviewStatusToggle}
-            >
-              {review.isClosed ? "다시 열기" : "리뷰 닫기"}
+          {isRequester && !isClosed && (
+            <Button type="button" variant="pearl" size="small" onClick={handleClose}>
+              리뷰 닫기
             </Button>
           )}
         </div>
       </header>
 
-      {review.isClosed && (
+      {isClosed && (
         <section className="review-closed-banner" aria-label="닫힌 코드 리뷰">
           <strong>닫힌 코드 리뷰입니다.</strong>
-          <span>내용은 읽을 수 있지만 새 코멘트, 추천, 채택, 제안 작성은 제한됩니다.</span>
+          <span>내용은 읽을 수 있지만 코멘트, 댓글, 답글 작성과 수정은 제한됩니다.</span>
         </section>
       )}
 
       <section className="review-diff-shell">
-        <aside className="review-diff-context">
-          <article className="review-info-card review-info-card--ai">
-            <h2>리뷰 요약</h2>
-            <p>{review.aiSummary}</p>
-          </article>
-        </aside>
-
         <article className="review-diff-file">
           <div className="review-diff-file__bar">
             <div className="review-diff-file__path">
-              <span aria-hidden="true">⌄</span>
-              <strong>{getSourceFileName(review)}</strong>
+              <strong>solution</strong>
             </div>
             <div className="review-diff-file__meta">
-              <span>{formatLanguage(review.language)}</span>
+              <span>{getLanguageLabel(review.language)}</span>
             </div>
           </div>
 
           <div className="review-diff-code" role="table" aria-label="코드 리뷰 라인">
             {codeLines.map((codeLine, index) => {
               const lineNumber = index + 1;
-              const comments = commentsByLine.get(lineNumber) ?? [];
-              const isActive = activeLine === lineNumber;
-              const isCommentThreadCollapsed = collapsedCommentLines.has(lineNumber);
+              const lineItems = commentsByLine.get(lineNumber) ?? [];
 
               return (
                 <div
-                  className={`review-diff-line-block ${
-                    isActive ? "is-active" : ""
-                  }`.trim()}
-                  key={`${lineNumber}-${codeLine}`}
+                  className={`review-diff-line-block ${activeLine === lineNumber ? "is-active" : ""}`.trim()}
+                  key={lineNumber}
                 >
                   <div
                     className={`review-diff-code-line ${
-                      review.isClosed ? "review-diff-code-line--readonly" : ""
+                      isClosed || isRequester ? "review-diff-code-line--readonly" : ""
                     }`.trim()}
                     role="row"
-                    tabIndex={review.isClosed ? -1 : 0}
                     onClick={() => openLineComment(lineNumber)}
-                    onKeyDown={(event) => handleCodeLineKeyDown(event, lineNumber)}
                   >
                     <button
                       type="button"
                       className="review-line-add-button"
                       aria-label={`Line ${lineNumber}에 코멘트 추가`}
-                      disabled={review.isClosed}
+                      disabled={isClosed || isRequester}
                       onClick={(event) => {
                         event.stopPropagation();
                         openLineComment(lineNumber);
@@ -628,62 +648,55 @@ function CodeReviewDetailPage() {
                     <span className="review-line-marker" role="cell">
                       +
                     </span>
-                    <code role="cell">
-                      {renderHighlightedCode(codeLine || " ", review.language)}
-                    </code>
+                    <code role="cell">{renderHighlightedCode(codeLine || " ", highlightLanguage)}</code>
                   </div>
 
-                  {isActive && (
-                    <form
-                      className="review-inline-comment-form"
-                      onSubmit={handleAddLineComment}
-                    >
+                  {activeLine === lineNumber && (
+                    <form className="review-inline-comment-form" onSubmit={handleAddLineComment}>
                       <div className="review-inline-comment-form__title">
-                        <span className="review-avatar" aria-hidden="true">
-                          C
-                        </span>
                         <strong>R{lineNumber} 줄에 코멘트 추가</strong>
                       </div>
                       <div className="review-inline-tabs">
                         <button
                           type="button"
-                          className={lineCommentViewMode === "editor" ? "is-active" : ""}
-                          onClick={() => setLineCommentViewMode("editor")}
+                          className={lineViewMode === "editor" ? "is-active" : ""}
+                          onClick={() => setLineViewMode("editor")}
                         >
                           작성
                         </button>
                         <button
                           type="button"
-                          className={lineCommentViewMode === "preview" ? "is-active" : ""}
-                          onClick={() => setLineCommentViewMode("preview")}
+                          className={lineViewMode === "preview" ? "is-active" : ""}
+                          onClick={() => setLineViewMode("preview")}
                         >
                           미리보기
                         </button>
                       </div>
-                      {lineCommentViewMode === "editor" ? (
-                        <textarea
-                          value={lineComment}
-                          onChange={(event) => setLineComment(event.target.value)}
-                          placeholder="마크다운으로 코멘트를 입력하세요"
-                          autoFocus
-                        />
+                      {lineViewMode === "editor" ? (
+                        <>
+                          <textarea
+                            value={lineContent}
+                            onChange={(event) => setLineContent(event.target.value)}
+                            placeholder="마크다운으로 코멘트를 입력하세요"
+                            autoFocus
+                          />
+                          <textarea
+                            value={lineSuggestion}
+                            onChange={(event) => setLineSuggestion(event.target.value)}
+                            placeholder="이 줄을 대체할 제안 코드 (선택)"
+                          />
+                        </>
                       ) : (
                         <div className="review-inline-markdown-preview">
-                          <MarkdownPreview markdown={lineComment} />
+                          <MarkdownPreview markdown={lineContent} />
                         </div>
                       )}
                       <div className="review-inline-comment-form__footer">
-                        <span>파일을 붙여넣거나 끌어오거나 클릭해서 추가</span>
                         <div>
-                          <Button
-                            type="button"
-                            variant="pearl"
-                            size="small"
-                            onClick={closeLineComment}
-                          >
+                          <Button type="button" variant="pearl" size="small" onClick={closeLineComment}>
                             취소
                           </Button>
-                          <Button type="submit" size="small">
+                          <Button type="submit" size="small" disabled={!lineContent.trim()}>
                             코멘트
                           </Button>
                         </div>
@@ -691,55 +704,12 @@ function CodeReviewDetailPage() {
                     </form>
                   )}
 
-                  {comments.length > 0 && (
-                    <section
-                      className={`review-line-comment-thread ${
-                        isCommentThreadCollapsed ? "is-collapsed" : ""
-                      }`.trim()}
-                    >
-                      <button
-                        type="button"
-                        className="review-line-comment-thread__toggle"
-                        aria-expanded={!isCommentThreadCollapsed}
-                        onClick={() => toggleCommentThread(lineNumber)}
-                      >
-                        <span aria-hidden="true">
-                          {isCommentThreadCollapsed ? "›" : "⌄"}
-                        </span>
-                        <strong>
-                          R{lineNumber} 줄 코멘트 {comments.length}개
-                        </strong>
-                      </button>
-
-                      {!isCommentThreadCollapsed &&
-                        comments.map((item) => {
-                          const isCommentCollapsed = collapsedCommentIds.has(item.id);
-
-                          return (
-                            <article
-                              className={`review-line-comment review-line-comment--${item.authorType} ${
-                                isCommentCollapsed ? "is-collapsed" : ""
-                              }`.trim()}
-                              key={item.id}
-                            >
-                              <header className="review-line-comment__header">
-                                <strong>{item.authorName}</strong>
-                                <button
-                                  type="button"
-                                  onClick={() => toggleInlineComment(item.id)}
-                                  aria-expanded={!isCommentCollapsed}
-                                >
-                                  {isCommentCollapsed ? "펼치기" : "접기"}
-                                </button>
-                              </header>
-                              {!isCommentCollapsed && (
-                                <div className="review-line-comment__body">
-                                  <MarkdownPreview markdown={item.body} />
-                                </div>
-                              )}
-                            </article>
-                          );
-                        })}
+                  {lineItems.length > 0 && (
+                    <section className="review-line-comment-thread">
+                      <strong>
+                        R{lineNumber} 줄 코멘트 {lineItems.length}개
+                      </strong>
+                      {renderThread(true, lineItems, "line-comments")}
                     </section>
                   )}
                 </div>
@@ -747,156 +717,77 @@ function CodeReviewDetailPage() {
             })}
           </div>
         </article>
-
       </section>
+
+      {applied && (
+        <section className="review-suggestion-section review-suggestion-section--full">
+          <div className="review-section-heading">
+            <div>
+              <p>Applied</p>
+              <h2>제안을 적용한 코드</h2>
+            </div>
+            <Button type="button" variant="pearl" size="small" onClick={() => setApplied(null)}>
+              닫기
+            </Button>
+          </div>
+          <div className="review-diff">
+            {createDiffRows(review.code, applied.code).map((row, index) => (
+              <div className={`review-diff__row review-diff__row--${row.type}`} key={index}>
+                <span>{row.left}</span>
+                <span>{row.right}</span>
+                <code>{row.code || " "}</code>
+              </div>
+            ))}
+          </div>
+          <div className="review-applied-run">
+            <textarea
+              value={stdin}
+              onChange={(event) => setStdin(event.target.value)}
+              placeholder="stdin 입력 (선택)"
+              aria-label="실행 입력"
+            />
+            <Button type="button" size="small" loading={isRunning} onClick={handleRunApplied}>
+              적용한 코드 실행
+            </Button>
+            {runResult && (
+              <pre className="review-applied-run__output">
+                {runResult.verdict === "FINISHED"
+                  ? runResult.stdout || "(출력 없음)"
+                  : getVerdictLabel(runResult.verdict)}
+                {runResult.stderr ? `\n[stderr]\n${runResult.stderr}` : ""}
+                {runResult.message ? `\n${runResult.message}` : ""}
+              </pre>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="review-suggestion-section review-suggestion-section--full">
         <div className="review-section-heading">
           <div>
-            <p>Suggestions</p>
-            <h2>제안 코드</h2>
+            <p>Comments</p>
+            <h2>전체 댓글</h2>
           </div>
-          <Link
-            to={`/code-review/${review.id}/suggestions/new`}
-            className={`button button--md button--contained ${
-              review.isClosed ? "button--disabled-link" : ""
-            }`.trim()}
-            aria-disabled={review.isClosed}
-            tabIndex={review.isClosed ? -1 : undefined}
-            onClick={(event) => {
-              if (review.isClosed) {
-                event.preventDefault();
-                setMessage("닫힌 리뷰에는 새 코드 제안을 작성할 수 없습니다.");
-              }
-            }}
-          >
-            코드 제안 작성
-          </Link>
         </div>
 
-        <div className="review-suggestion-list">
-          {isGeneratingReview && (
-            <article className="review-suggestion-loading">
-              <div>
-                <strong>제안 코드를 준비하는 중입니다.</strong>
-                <p>완료되면 이 영역에 자동으로 표시됩니다.</p>
-              </div>
-              <div className="review-suggestion-loading__bar" aria-hidden="true">
-                <span />
-              </div>
-            </article>
-          )}
+        {comments.length === 0 && <p className="code-review-empty">아직 댓글이 없습니다.</p>}
+        {renderThread(false, comments, "comments")}
 
-          {review.suggestions.map((suggestion) => {
-            const author = getSuggestionAuthor(suggestion, review);
-            const isAccepted = review.acceptedSuggestionId === suggestion.id;
-            const isRecommended = suggestion.recommendedBy?.includes(currentUserId);
-
-            return (
-              <article className="review-suggestion-card" key={suggestion.id}>
-                <div className="review-suggestion-card__head">
-                  <div>
-                    <div className="review-suggestion-title-row">
-                      <strong>{suggestion.title}</strong>
-                      {isAccepted && <span>채택됨</span>}
-                    </div>
-                    <Link
-                      to={`/users/${author.id}`}
-                      className="review-suggestion-author"
-                    >
-                      <span>{author.type}</span>
-                      {author.name}
-                    </Link>
-                    <p>{suggestion.description}</p>
-                  </div>
-                  <div className="review-suggestion-actions">
-                    <Button
-                      type="button"
-                      variant={isRecommended ? "primary" : "pearl"}
-                      size="small"
-                      disabled={review.isClosed}
-                      onClick={() => handleRecommendSuggestion(suggestion.id)}
-                    >
-                      추천 {suggestion.recommendationCount ?? 0}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={isAccepted ? "primary" : "pearl"}
-                      size="small"
-                      disabled={isAccepted || review.isClosed}
-                      onClick={() => handleAcceptSuggestion(suggestion.id)}
-                    >
-                      {isAccepted ? "채택 완료" : "채택"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="dark"
-                      size="small"
-                      onClick={() => openSuggestionTerminal(suggestion)}
-                    >
-                      실행
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="review-diff">
-                  {createDiffRows(review.code, suggestion.code).map((row, index) => (
-                    <div
-                      className={`review-diff__row review-diff__row--${row.type}`}
-                      key={index}
-                    >
-                      <span>{row.left}</span>
-                      <span>{row.right}</span>
-                      <code>{row.code || " "}</code>
-                    </div>
-                  ))}
-                </div>
-              </article>
-            );
-          })}
-        </div>
+        {!isClosed && !isRequester && (
+          <form className="review-inline-comment-form" onSubmit={handleAddComment}>
+            <textarea
+              value={commentContent}
+              onChange={(event) => setCommentContent(event.target.value)}
+              placeholder="전체적인 리뷰를 마크다운으로 남겨보세요"
+            />
+            <Button type="submit" size="small" disabled={!commentContent.trim()}>
+              댓글 작성
+            </Button>
+          </form>
+        )}
 
         {message && <p className="code-review-message">{message}</p>}
       </section>
-
-      {terminalTarget && (
-        <div
-          className="review-terminal-modal"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`${terminalTarget.title} 실행 터미널`}
-        >
-          <div className="review-terminal-modal__dialog">
-            <header className="review-terminal-modal__header">
-              <div>
-                <p>
-                  {terminalTarget.type === "original"
-                    ? "Original Runner"
-                    : "Suggestion Runner"}
-                </p>
-                <h2>{terminalTarget.title}</h2>
-              </div>
-              <Button
-                type="button"
-                variant="pearl"
-                size="small"
-                disabled={isTerminalRunning}
-                onClick={closeTerminal}
-              >
-                닫기
-              </Button>
-            </header>
-            <ExecutionTerminal
-              input={terminalInput}
-              lines={terminalLines}
-              isRunning={isTerminalRunning}
-              onChangeInput={setTerminalInput}
-              onClear={resetTerminal}
-              onRunInput={handleRunTerminal}
-            />
-          </div>
-        </div>
-      )}
     </main>
   );
 }

@@ -1,647 +1,137 @@
-import { getCurrentUser, getCurrentUserId } from "./AuthApi";
-import { generateGeminiCodeReview } from "./GeminiApi";
-import { getProblemOptions } from "./ProblemApi";
-import { ACCEPTED_RESULT, getSubmissionList } from "./SubmissionApi";
+import { request } from "./apiClient";
 
-const CODE_REVIEW_STORAGE_KEY = "cotre_mock_code_reviews";
-export const CODE_REVIEW_UPDATED_EVENT = "cotre-code-reviews-updated";
+export const CODE_REVIEW_PAGE_SIZE = 20;
 
-const generationRequests = new Map();
+const BASE = "/api/review-requests";
 
-function delay(ms = 120) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
+function reviewPath(id, suffix = "") {
+  return `${BASE}/${encodeURIComponent(id)}${suffix}`;
+}
+
+function pageQuery({ page = 0, size = CODE_REVIEW_PAGE_SIZE, ...rest } = {}) {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+
+  Object.entries(rest).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, String(value));
+    }
+  });
+
+  return params;
+}
+
+// 리뷰 요청 -----------------------------------------------------------
+
+export function createReviewRequest(submissionId) {
+  return request(BASE, {
+    method: "POST",
+    body: { submissionId: Number(submissionId) },
   });
 }
 
-function normalizeSuggestion(suggestion) {
-  const recommendedBy = Array.isArray(suggestion.recommendedBy)
-    ? suggestion.recommendedBy
-    : [];
-
-  return {
-    ...suggestion,
-    recommendedBy,
-    recommendationCount:
-      Number(suggestion.recommendationCount) || recommendedBy.length,
-  };
+// 닫히지 않은 요청과 내가 요청한 요청이 최신순으로 온다
+export function getReviewRequests({ problemId, page, size } = {}) {
+  return request(`${BASE}?${pageQuery({ page, size, problemId })}`);
 }
 
-function normalizeReview(review) {
-  return {
-    ...review,
-    generationStatus: review.generationStatus ?? "ready",
-    isClosed: Boolean(review.isClosed),
-    closedAt: review.closedAt ?? "",
-    aiSummary: review.aiSummary ?? "리뷰 요약을 준비했습니다.",
-    acceptedSuggestionId: review.acceptedSuggestionId ?? "",
-    comments: review.comments ?? [],
-    suggestions: (review.suggestions ?? []).map(normalizeSuggestion),
-  };
+export function getReviewRequest(id) {
+  return request(reviewPath(id));
 }
 
-function getStoredReviews() {
-  const rawReviews = window.localStorage.getItem(CODE_REVIEW_STORAGE_KEY);
-
-  if (!rawReviews) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(rawReviews).map(normalizeReview);
-  } catch {
-    window.localStorage.removeItem(CODE_REVIEW_STORAGE_KEY);
-    return [];
-  }
+export function closeReviewRequest(id) {
+  return request(reviewPath(id, "/close"), { method: "POST" });
 }
 
-function saveReviews(reviews) {
-  window.localStorage.setItem(CODE_REVIEW_STORAGE_KEY, JSON.stringify(reviews));
-  window.dispatchEvent(new Event(CODE_REVIEW_UPDATED_EVENT));
-}
-
-function createCodeReviewError(message, code) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
-}
-
-async function assertCanReviewProblem(problemId) {
-  const acceptedProblemIds = await getAcceptedProblemIds();
-
-  if (!acceptedProblemIds.has(Number(problemId))) {
-    throw createCodeReviewError(
-      "해당 문제를 해결한 사용자만 코드 리뷰를 볼 수 있습니다.",
-      "REVIEW_FORBIDDEN",
-    );
-  }
-}
-
-function assertReviewOpen(review) {
-  if (review.isClosed) {
-    throw createCodeReviewError(
-      "닫힌 리뷰에는 새 변경을 추가할 수 없습니다.",
-      "REVIEW_CLOSED",
-    );
-  }
-}
-
-function assertCanManageReview(review, user) {
-  if (!user) {
-    throw createCodeReviewError("로그인 후 변경할 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  if (review.authorId && review.authorId !== user.id) {
-    throw createCodeReviewError(
-      "리뷰 작성자만 상태를 변경할 수 있습니다.",
-      "REVIEW_STATUS_FORBIDDEN",
-    );
-  }
-}
-
-function getCodeLines(code) {
-  return String(code ?? "").split("\n");
-}
-
-function getFirstMeaningfulLine(lines) {
-  const index = lines.findIndex((line) => line.trim());
-  return index === -1 ? 1 : index + 1;
-}
-
-function getOutputLine(lines) {
-  const index = lines.findIndex((line) =>
-    /console\.log|print\(|return\s+/i.test(line),
-  );
-  return index === -1 ? Math.max(1, lines.length) : index + 1;
-}
-
-function createSuggestedCode({ code, language }) {
-  if (language === "python") {
-    return `# COTRE review suggestion: keep parsing and output logic easy to verify.\n${code}`;
-  }
-
-  return `// COTRE review suggestion: keep parsing and output logic easy to verify.\n${code}`;
-}
-
-function createAiReview({ submission, description }) {
-  const lines = getCodeLines(submission.code);
-  const firstLine = getFirstMeaningfulLine(lines);
-  const outputLine = getOutputLine(lines);
-  const hasDescription = String(description ?? "").trim().length > 0;
-
-  return {
-    source: "mock",
-    summary: hasDescription
-      ? "설명 기준으로 보면 풀이 의도는 잘 드러납니다. 이제 입력 처리와 출력 형식이 흔들리지 않도록 경계값을 조금 더 명확히 남기면 좋습니다."
-      : "코드 구조는 간단하지만, 리뷰를 더 정확히 하려면 풀이 의도와 시간 복잡도 설명을 함께 남기는 것이 좋습니다.",
-    comments: [
-      {
-        id: `ai-comment-${Date.now()}-1`,
-        authorType: "ai",
-        authorName: "COTRE Review",
-        line: firstLine,
-        body: "풀이의 시작 지점입니다. 입력을 어떤 형태로 해석하는지 짧게 주석이나 설명에 남기면 이후 리뷰가 쉬워집니다.",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: `ai-comment-${Date.now()}-2`,
-        authorType: "ai",
-        authorName: "COTRE Review",
-        line: outputLine,
-        body: "정답 출력 부분은 문제의 공백과 줄바꿈 조건에 직접 영향을 받습니다. 예제 외 입력에서도 같은 형식을 유지하는지 확인해보세요.",
-        createdAt: new Date().toISOString(),
-      },
-    ],
-    suggestions: [
-      {
-        id: `ai-suggestion-${Date.now()}`,
-        authorType: "ai",
-        authorId: "ai-cotre",
-        authorName: "COTRE Review",
-        title: "검증하기 쉬운 형태로 의도 주석 추가",
-        description:
-          "동작을 바꾸기보다는 리뷰 과정에서 입력/출력 흐름이 잘 보이도록 짧은 의도 주석을 추가한 제안입니다.",
-        code: createSuggestedCode(submission),
-        recommendedBy: [],
-        recommendationCount: 0,
-        createdAt: new Date().toISOString(),
-      },
-    ],
-  };
-}
-
-async function createAiReviewWithFallback({ submission, description }) {
-  try {
-    return {
-      ...(await generateGeminiCodeReview({ submission, description })),
-      fallbackReason: "",
-    };
-  } catch (error) {
-    return {
-      ...createAiReview({ submission, description }),
-      fallbackReason: error.message,
-    };
-  }
-}
-
-function getSubmissionFromReview(review) {
-  return {
-    id: review.submissionId,
-    problemId: review.problemId,
-    problemTitle: review.problemTitle,
-    language: review.language,
-    code: review.code,
-    runtimeMs: review.runtimeMs,
-    memoryKb: review.memoryKb,
-  };
-}
-
-async function completeGeneratedReview(reviewId, { submission, description }) {
-  const aiReview = await createAiReviewWithFallback({ submission, description });
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review || review.generationStatus !== "generating") {
-    return review;
-  }
-
-  const nextReview = {
-    ...review,
-    aiProvider: aiReview.source,
-    aiFallbackReason: aiReview.fallbackReason,
-    aiSummary: aiReview.summary,
-    comments: [...(review.comments ?? []), ...aiReview.comments],
-    suggestions: [...(review.suggestions ?? []), ...aiReview.suggestions],
-    generationStatus: "ready",
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
-}
-
-export function ensureCodeReviewGenerated(reviewId) {
-  const review = getStoredReviews().find((item) => item.id === reviewId);
-
-  if (!review || review.generationStatus !== "generating") {
-    return Promise.resolve(review);
-  }
-
-  if (generationRequests.has(reviewId)) {
-    return generationRequests.get(reviewId);
-  }
-
-  const request = completeGeneratedReview(reviewId, {
-    submission: getSubmissionFromReview(review),
-    description: review.description,
-  }).finally(() => {
-    generationRequests.delete(reviewId);
+// 코멘트 하나를 골라 적용한 전체 코드를 돌려준다. 서버에 저장하지 않는다
+export async function applyLineComment(id, lineCommentId) {
+  const result = await request(reviewPath(id, "/apply"), {
+    method: "POST",
+    body: { lineCommentIds: [Number(lineCommentId)] },
   });
 
-  generationRequests.set(reviewId, request);
-
-  return request;
+  return result.code;
 }
 
-async function getAcceptedSubmission(submissionId) {
-  const submissions = await getSubmissionList();
-  const submission = submissions.find((item) => item.id === submissionId);
+// 줄 코멘트 -----------------------------------------------------------
 
-  if (!submission) {
-    throw createCodeReviewError("제출 기록을 찾을 수 없습니다.", "SUBMISSION_NOT_FOUND");
-  }
-
-  if (submission.result !== ACCEPTED_RESULT) {
-    throw createCodeReviewError(
-      "코드 리뷰는 정답 처리된 제출만 요청할 수 있습니다.",
-      "SUBMISSION_NOT_ACCEPTED",
-    );
-  }
-
-  return submission;
+export function getLineComments(id) {
+  return request(reviewPath(id, "/line-comments"));
 }
 
-async function getAcceptedProblemIds() {
-  const submissions = await getSubmissionList();
-
-  return new Set(
-    submissions
-      .filter((submission) => submission.result === ACCEPTED_RESULT)
-      .map((submission) => Number(submission.problemId)),
-  );
-}
-
-export async function createCodeReview({ submissionId, title, description }) {
-  await delay();
-
-  const trimmedTitle = String(title ?? "").trim();
-  const trimmedDescription = String(description ?? "").trim();
-
-  if (!trimmedTitle) {
-    throw createCodeReviewError("리뷰 제목을 입력해주세요.", "EMPTY_TITLE");
-  }
-
-  if (!trimmedDescription) {
-    throw createCodeReviewError("코드 설명을 입력해주세요.", "EMPTY_DESCRIPTION");
-  }
-
-  const [submission, user] = await Promise.all([
-    getAcceptedSubmission(submissionId),
-    getCurrentUser(),
-  ]);
-  const review = {
-    id: `code-review-${Date.now()}`,
-    submissionId: submission.id,
-    problemId: submission.problemId,
-    problemTitle: submission.problemTitle,
-    title: trimmedTitle,
-    description: trimmedDescription,
-    language: submission.language,
-    code: submission.code,
-    runtimeMs: submission.runtimeMs,
-    memoryKb: submission.memoryKb,
-    authorId: user?.id ?? "",
-    authorName: user?.name ?? "익명",
-    aiProvider: "",
-    aiFallbackReason: "",
-    aiSummary: "리뷰 요약과 제안 코드를 준비하는 중입니다.",
-    comments: [],
-    suggestions: [],
-    generationStatus: "generating",
-    isClosed: false,
-    closedAt: "",
-    acceptedSuggestionId: "",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews([review, ...getStoredReviews()]);
-  ensureCodeReviewGenerated(review.id);
-
-  return review;
-}
-
-export async function getCodeReviewList({ problemId } = {}) {
-  await delay();
-
-  const acceptedProblemIds = await getAcceptedProblemIds();
-  const filteredReviews = getStoredReviews().filter((review) => {
-    const canReviewProblem = acceptedProblemIds.has(Number(review.problemId));
-    const matchesProblem =
-      !problemId || Number(review.problemId) === Number(problemId);
-
-    return canReviewProblem && matchesProblem;
+export function createLineComment(id, { lineNumber, content, suggestedCode }) {
+  return request(reviewPath(id, "/line-comments"), {
+    method: "POST",
+    body: {
+      lineNumber: Number(lineNumber),
+      content,
+      suggestedCode: suggestedCode?.trim() ? suggestedCode : undefined,
+    },
   });
-
-  return filteredReviews;
 }
 
-export function getMyReviewActivity() {
-  const userId = getCurrentUserId();
-  if (!userId) return { requests: [], reviews: [], comments: [] };
-  const mine = (item) => String(item.authorId) === String(userId);
-  const activity = { requests: [], reviews: [], comments: [] };
-
-  for (const review of getStoredReviews()) {
-    const context = { reviewId: review.id, reviewTitle: review.title };
-    if (mine(review)) activity.requests.push({ ...review, ...context });
-    for (const suggestion of review.suggestions) {
-      if (mine(suggestion)) activity.reviews.push({ ...suggestion, ...context });
-    }
-    for (const comment of review.comments) {
-      if (mine(comment)) activity.comments.push({ ...comment, ...context });
-    }
-  }
-
-  for (const items of Object.values(activity)) {
-    items.sort((left, right) => String(right.createdAt).localeCompare(String(left.createdAt)));
-  }
-  return activity;
+export function updateLineComment(id, commentId, { content, suggestedCode }) {
+  return request(reviewPath(id, `/line-comments/${encodeURIComponent(commentId)}`), {
+    method: "PATCH",
+    body: { content, suggestedCode },
+  });
 }
 
-export async function getCodeReviewById(id) {
-  await delay();
-
-  const review = getStoredReviews().find((item) => item.id === id);
-
-  if (!review) {
-    return undefined;
-  }
-
-  const acceptedProblemIds = await getAcceptedProblemIds();
-
-  return acceptedProblemIds.has(Number(review.problemId)) ? review : undefined;
+export function deleteLineComment(id, commentId) {
+  return request(reviewPath(id, `/line-comments/${encodeURIComponent(commentId)}`), {
+    method: "DELETE",
+  });
 }
 
-export async function getReviewableSubmission(submissionId) {
-  await delay();
+// 전체 댓글 -----------------------------------------------------------
 
-  return getAcceptedSubmission(submissionId);
+export function getComments(id, { page, size } = {}) {
+  return request(reviewPath(id, `/comments?${pageQuery({ page, size })}`));
 }
 
-export async function getCodeReviewProblemOptions(keyword = "") {
-  await delay();
-
-  const [problems, submissions] = await Promise.all([
-    getProblemOptions(),
-    getSubmissionList(),
-  ]);
-  const acceptedSubmissions = submissions.filter(
-    (submission) => submission.result === ACCEPTED_RESULT,
-  );
-  const acceptedProblemIds = new Set(
-    acceptedSubmissions.map((submission) => Number(submission.problemId)),
-  );
-  const normalizedKeyword = String(keyword ?? "").trim().toLowerCase();
-
-  return problems
-    .map((problem) => {
-      const latestSubmission = acceptedSubmissions.find(
-        (submission) => Number(submission.problemId) === Number(problem.id),
-      );
-
-      return {
-        ...problem,
-        isSolved: acceptedProblemIds.has(Number(problem.id)),
-        latestAcceptedSubmissionId: latestSubmission?.id ?? "",
-      };
-    })
-    .filter((problem) => {
-      if (!normalizedKeyword) {
-        return true;
-      }
-
-      return (
-        String(problem.id).includes(normalizedKeyword) ||
-        String(problem.title).toLowerCase().includes(normalizedKeyword) ||
-        String(problem.tier).toLowerCase().includes(normalizedKeyword)
-      );
-    });
+export function createComment(id, content) {
+  return request(reviewPath(id, "/comments"), {
+    method: "POST",
+    body: { content },
+  });
 }
 
-export async function addCodeReviewComment(reviewId, { line, body }) {
-  await delay();
-
-  const user = await getCurrentUser();
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review) {
-    throw createCodeReviewError("코드 리뷰를 찾을 수 없습니다.", "REVIEW_NOT_FOUND");
-  }
-
-  await assertCanReviewProblem(review.problemId);
-  assertReviewOpen(review);
-
-  const comment = {
-    id: `human-comment-${Date.now()}`,
-    authorType: "human",
-    authorId: user?.id ?? "",
-    authorName: user?.name ?? "익명",
-    line: Number(line),
-    body: String(body ?? "").trim(),
-    createdAt: new Date().toISOString(),
-  };
-
-  if (!comment.body) {
-    throw createCodeReviewError("라인 코멘트를 입력해주세요.", "EMPTY_COMMENT");
-  }
-
-  const nextReview = {
-    ...review,
-    comments: [...review.comments, comment],
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
+export function updateComment(id, commentId, content) {
+  return request(reviewPath(id, `/comments/${encodeURIComponent(commentId)}`), {
+    method: "PATCH",
+    body: { content },
+  });
 }
 
-export async function addCodeReviewSuggestion(
-  reviewId,
-  { title, description, code },
-) {
-  await delay();
-
-  const user = await getCurrentUser();
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review) {
-    throw createCodeReviewError("코드 리뷰를 찾을 수 없습니다.", "REVIEW_NOT_FOUND");
-  }
-
-  await assertCanReviewProblem(review.problemId);
-  assertReviewOpen(review);
-
-  const suggestion = {
-    id: `human-suggestion-${Date.now()}`,
-    authorType: "human",
-    authorId: user?.id ?? "",
-    authorName: user?.name ?? "익명",
-    title: String(title ?? "").trim(),
-    description: String(description ?? "").trim(),
-    code: String(code ?? ""),
-    recommendedBy: [],
-    recommendationCount: 0,
-    createdAt: new Date().toISOString(),
-  };
-
-  if (!suggestion.title || !suggestion.code.trim()) {
-    throw createCodeReviewError(
-      "제안 제목과 코드를 입력해주세요.",
-      "EMPTY_SUGGESTION",
-    );
-  }
-
-  const nextReview = {
-    ...review,
-    suggestions: [...review.suggestions, suggestion],
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
+export function deleteComment(id, commentId) {
+  return request(reviewPath(id, `/comments/${encodeURIComponent(commentId)}`), {
+    method: "DELETE",
+  });
 }
 
-export async function recommendCodeReviewSuggestion(reviewId, suggestionId) {
-  await delay();
+// 답글 ----------------------------------------------------------------
 
-  const user = await getCurrentUser();
-
-  if (!user) {
-    throw createCodeReviewError("로그인 후 추천할 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review) {
-    throw createCodeReviewError("코드 리뷰를 찾을 수 없습니다.", "REVIEW_NOT_FOUND");
-  }
-
-  await assertCanReviewProblem(review.problemId);
-  assertReviewOpen(review);
-
-  const hasSuggestion = review.suggestions.some(
-    (suggestion) => suggestion.id === suggestionId,
-  );
-
-  if (!hasSuggestion) {
-    throw createCodeReviewError("코드 제안을 찾을 수 없습니다.", "SUGGESTION_NOT_FOUND");
-  }
-
-  const nextReview = {
-    ...review,
-    suggestions: review.suggestions.map((suggestion) => {
-      if (suggestion.id !== suggestionId) {
-        return suggestion;
-      }
-
-      const recommendedBy = suggestion.recommendedBy.includes(user.id)
-        ? suggestion.recommendedBy.filter((userId) => userId !== user.id)
-        : [...suggestion.recommendedBy, user.id];
-
-      return {
-        ...suggestion,
-        recommendedBy,
-        recommendationCount: recommendedBy.length,
-      };
-    }),
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
+// kind: "line-comments" | "comments"
+export function createReply(id, kind, commentId, content) {
+  return request(reviewPath(id, `/${kind}/${encodeURIComponent(commentId)}/replies`), {
+    method: "POST",
+    body: { content },
+  });
 }
 
-export async function acceptCodeReviewSuggestion(reviewId, suggestionId) {
-  await delay();
-
-  const user = await getCurrentUser();
-
-  if (!user) {
-    throw createCodeReviewError("로그인 후 채택할 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review) {
-    throw createCodeReviewError("코드 리뷰를 찾을 수 없습니다.", "REVIEW_NOT_FOUND");
-  }
-
-  await assertCanReviewProblem(review.problemId);
-  assertReviewOpen(review);
-
-  if (review.authorId && review.authorId !== user.id) {
-    throw createCodeReviewError("리뷰 작성자만 제안을 채택할 수 있습니다.", "ACCEPT_FORBIDDEN");
-  }
-
-  const hasSuggestion = review.suggestions.some(
-    (suggestion) => suggestion.id === suggestionId,
-  );
-
-  if (!hasSuggestion) {
-    throw createCodeReviewError("코드 제안을 찾을 수 없습니다.", "SUGGESTION_NOT_FOUND");
-  }
-
-  const nextReview = {
-    ...review,
-    acceptedSuggestionId: suggestionId,
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
+export function updateReply(id, replyId, content) {
+  return request(reviewPath(id, `/replies/${encodeURIComponent(replyId)}`), {
+    method: "PATCH",
+    body: { content },
+  });
 }
 
-export async function setCodeReviewClosed(reviewId, isClosed) {
-  await delay();
-
-  const user = await getCurrentUser();
-  const reviews = getStoredReviews();
-  const review = reviews.find((item) => item.id === reviewId);
-
-  if (!review) {
-    throw createCodeReviewError("코드 리뷰를 찾을 수 없습니다.", "REVIEW_NOT_FOUND");
-  }
-
-  await assertCanReviewProblem(review.problemId);
-  assertCanManageReview(review, user);
-
-  const nextIsClosed = Boolean(isClosed);
-  const nextReview = {
-    ...review,
-    isClosed: nextIsClosed,
-    closedAt: nextIsClosed ? new Date().toISOString() : "",
-    updatedAt: new Date().toISOString(),
-  };
-
-  saveReviews(reviews.map((item) => (item.id === reviewId ? nextReview : item)));
-
-  return nextReview;
+export function deleteReply(id, replyId) {
+  return request(reviewPath(id, `/replies/${encodeURIComponent(replyId)}`), {
+    method: "DELETE",
+  });
 }
 
-export function getAcceptedSuggestionRewardXp(userId = getCurrentUserId()) {
-  if (!userId) {
-    return 0;
-  }
-
-  return getStoredReviews().reduce((totalXp, review) => {
-    const acceptedSuggestion = review.suggestions.find(
-      (suggestion) => suggestion.id === review.acceptedSuggestionId,
-    );
-
-    if (!acceptedSuggestion || acceptedSuggestion.authorId !== userId) {
-      return totalXp;
-    }
-
-    return totalXp + 2;
-  }, 0);
+// 마이페이지: 내가 요청한 리뷰. status는 ALL(기본) | OPEN | CLOSED
+export function getMyReviewRequests({ status, page, size } = {}) {
+  return request(`/api/users/me/review-requests?${pageQuery({ page, size, status })}`);
 }
