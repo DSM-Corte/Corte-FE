@@ -13,6 +13,12 @@ function CodeEditorPanel({
   onChangeLanguage,
   onRunExamples,
   onSubmit,
+  draftStatus,
+  draftBusy,
+  draftReadOnly,
+  draftLanguageLocked,
+  onRetryDraft,
+  onRetrySave,
 }) {
   return (
     <article className="submit-editor-panel">
@@ -22,6 +28,7 @@ function CodeEditorPanel({
           <select
             className="input"
             value={language}
+            disabled={draftBusy || draftLanguageLocked}
             onChange={(event) => onChangeLanguage(event.target.value)}
           >
             {languageOptions.map((option) => (
@@ -33,12 +40,17 @@ function CodeEditorPanel({
         </label>
 
         <div className="submit-toolbar__actions">
+          {(onRetryDraft || onRetrySave) && (
+            <Button type="button" variant="pearl" size="medium" onClick={onRetryDraft ?? onRetrySave}>
+              {onRetryDraft ? "다시 불러오기" : "저장 재시도"}
+            </Button>
+          )}
           <Button
             type="button"
             variant="pearl"
             size="medium"
             loading={isRunning}
-            disabled={isSubmitting}
+            disabled={isSubmitting || draftBusy}
             onClick={onRunExamples}
           >
             {runLabel}
@@ -47,7 +59,7 @@ function CodeEditorPanel({
             type="button"
             size="medium"
             loading={isSubmitting}
-            disabled={isRunning}
+            disabled={isRunning || draftBusy}
             onClick={onSubmit}
           >
             {submitLabel}
@@ -55,10 +67,12 @@ function CodeEditorPanel({
         </div>
       </div>
 
+      {draftStatus && <p role="status">{draftStatus}</p>}
       <CodeMirrorEditor
         value={code}
         language={language}
         onChange={onChangeCode}
+        readOnly={draftReadOnly}
       />
     </article>
   );

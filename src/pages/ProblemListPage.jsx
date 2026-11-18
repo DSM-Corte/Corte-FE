@@ -10,6 +10,7 @@ import "./ProblemListPage.css";
 
 function ProblemListPage() {
   const {
+    error,
     filters,
     pagination,
     problems,
@@ -17,7 +18,7 @@ function ProblemListPage() {
     sortDirection,
     sortKey,
     tagOptions,
-    resetFilters: resetProblemFilters,
+    resetFilters,
     setCurrentPage,
     setSearchInput,
     submitSearch,
@@ -25,15 +26,7 @@ function ProblemListPage() {
     updatePageSize,
     updateSort,
   } = useProblemList();
-  const [isSolvedOpen, setIsSolvedOpen] = useState(true);
-  const [isAverageOpen, setIsAverageOpen] = useState(false);
   const [isFilterOpen, setIsFilterOpen] = useState(true);
-
-  function resetFilters() {
-    resetProblemFilters();
-    setIsSolvedOpen(true);
-    setIsAverageOpen(false);
-  }
 
   return (
     <main
@@ -47,10 +40,6 @@ function ProblemListPage() {
         <ProblemFilters
           filters={filters}
           tagOptions={tagOptions}
-          isSolvedOpen={isSolvedOpen}
-          setIsSolvedOpen={setIsSolvedOpen}
-          isAverageOpen={isAverageOpen}
-          setIsAverageOpen={setIsAverageOpen}
           onCollapse={() => setIsFilterOpen(false)}
           updateFilter={updateFilter}
           resetFilters={resetFilters}
@@ -75,7 +64,7 @@ function ProblemListPage() {
           sortDirection={sortDirection}
           onSort={updateSort}
         />
-        <ProblemTable problems={problems} />
+        {error ? <p role="alert">{error}</p> : <ProblemTable problems={problems} />}
         <ProblemPagination
           pagination={pagination}
           onPageChange={setCurrentPage}

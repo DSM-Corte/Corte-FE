@@ -130,3 +130,8 @@ export function deleteReply(id, replyId) {
     method: "DELETE",
   });
 }
+
+// 마이페이지: 내가 요청한 리뷰. status는 ALL(기본) | OPEN | CLOSED
+export function getMyReviewRequests({ status, page, size } = {}) {
+  return request(`/api/users/me/review-requests?${pageQuery({ page, size, status })}`);
+}
