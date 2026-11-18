@@ -5,3 +5,7 @@ import { request } from "./apiClient";
 export async function getMyGrass() {
   return request("/api/users/me/grass");
 }
+
+export function getMyStats() {
+  return request("/api/users/me/stats");
+}

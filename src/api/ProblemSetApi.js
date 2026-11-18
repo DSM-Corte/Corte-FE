@@ -1,82 +1,95 @@
-import { getCurrentUserId } from "./AuthApi";
+import { isAuthenticated } from "./AuthApi";
+import { getMySubmissions } from "./JudgeApi";
+import { request } from "./apiClient";
 
-const PROBLEM_SET_STORAGE_KEY = "cotre_mock_problem_sets";
-
-function delay(ms = 120) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
+async function readPages(path, selectPage = (response) => response) {
+  const items = [];
+  let page = 0;
+  let totalPages;
+  do {
+    const response = selectPage(await request(`${path}?page=${page}&size=100`));
+    items.push(...response.content);
+    totalPages = response.totalPages;
+    page += 1;
+  } while (page < totalPages);
+  return items;
 }
 
-function getStoredProblemSets() {
-  const rawProblemSets = window.localStorage.getItem(PROBLEM_SET_STORAGE_KEY);
-
-  if (!rawProblemSets) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(rawProblemSets);
-  } catch {
-    window.localStorage.removeItem(PROBLEM_SET_STORAGE_KEY);
-    return [];
-  }
-}
-
-function saveProblemSets(problemSets) {
-  window.localStorage.setItem(PROBLEM_SET_STORAGE_KEY, JSON.stringify(problemSets));
-}
-
-function createProblemSetError(message, code) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
+export async function getCustomProblemSet(id) {
+  if (!/^\d+$/.test(id)) return null;
+  const problems = await readPages(`/api/workbooks/${id}`, (response) => response.problems);
+  return { id: String(id), problemIds: problems.map((problem) => problem.id) };
 }
 
 export async function getCustomProblemSets() {
-  await delay();
-
-  const userId = getCurrentUserId();
-
-  return getStoredProblemSets()
-    .filter((problemSet) => !problemSet.ownerId || problemSet.ownerId === userId)
-    .sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
+  const workbooks = await readPages("/api/workbooks");
+  return Promise.all(workbooks.map(async (workbook) => ({
+    ...(await getCustomProblemSet(workbook.id)),
+    title: workbook.name,
+  })));
 }
 
-export async function createCustomProblemSet({ title, description, problemIds }) {
-  await delay();
-
-  const ownerId = getCurrentUserId();
-  const trimmedTitle = String(title ?? "").trim();
-  const trimmedDescription = String(description ?? "").trim();
-  const uniqueProblemIds = [...new Set(problemIds.map(Number))]
-    .filter((problemId) => Number.isFinite(problemId))
-    .sort((left, right) => left - right);
-
-  if (!ownerId) {
-    throw createProblemSetError("로그인 후 문제집을 만들 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  if (!trimmedTitle) {
-    throw createProblemSetError("문제집 제목을 입력해주세요.", "EMPTY_TITLE");
-  }
-
-  if (uniqueProblemIds.length === 0) {
-    throw createProblemSetError("문제를 1개 이상 선택해주세요.", "EMPTY_PROBLEMS");
-  }
-
-  const problemSet = {
-    id: `custom-set-${Date.now()}`,
-    ownerId,
-    title: trimmedTitle,
-    description:
-      trimmedDescription || "직접 고른 문제를 순서대로 풀어보는 사용자 문제집입니다.",
-    problemIds: uniqueProblemIds,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
+export function toWorkbookProblem(problem) {
+  return {
+    ...problem,
+    tags: problem.tags ?? [],
+    tier: problem.difficulty.toLowerCase().replace(/^./, (letter) => letter.toUpperCase()).replace("_", " "),
   };
+}
 
-  saveProblemSets([problemSet, ...getStoredProblemSets()]);
+export async function getWorkbookProblemCatalog() {
+  return (await readPages("/api/problems")).map(toWorkbookProblem);
+}
 
-  return problemSet;
+export async function getWorkbookCatalogWithProgress() {
+  const progress = new Map();
+
+  async function loadProgress() {
+    if (!isAuthenticated()) return;
+
+    let page = 0;
+    let totalPages;
+    do {
+      const result = await getMySubmissions({ page, size: 100 });
+      for (const { problemId, verdict } of result.content) {
+        const id = Number(problemId);
+        progress.set(id, verdict === "ACCEPTED" || progress.get(id) === true);
+      }
+      totalPages = result.totalPages;
+      page += 1;
+    } while (page < totalPages);
+  }
+
+  const [problems] = await Promise.all([getWorkbookProblemCatalog(), loadProgress()]);
+  return problems.map((problem) => ({
+    ...problem,
+    attempted: progress.has(Number(problem.id)),
+    solved: progress.get(Number(problem.id)) === true,
+  }));
+}
+
+export async function createCustomProblemSet({ title, problemIds }) {
+  if (!title.trim()) throw new Error("문제집 제목을 입력해주세요.");
+  if (!problemIds.length) throw new Error("문제를 1개 이상 선택해주세요.");
+
+  const workbook = await request("/api/workbooks", {
+    method: "POST",
+    body: { name: title.trim() },
+  });
+  try {
+    for (const problemId of new Set(problemIds.map(Number))) {
+      await request(`/api/workbooks/${workbook.id}/problems`, {
+        method: "POST",
+        body: { problemId },
+      });
+    }
+  } catch (error) {
+    try {
+      await request(`/api/workbooks/${workbook.id}`, { method: "DELETE" });
+    } catch {
+      throw new Error("문제 추가에 실패했고 생성된 문제집도 삭제하지 못했습니다.");
+    }
+    throw error;
+  }
+  return workbook;
 }
