@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
-import { isAuthenticated } from "./api/AuthApi";
+import { getAuthToken, isAuthenticated } from "./api/AuthApi";
+import { getMyTheme, updateMyTheme } from "./api/UserApi";
 import Header from "./components/layout/Header";
 import CodeReviewPage from "./pages/CodeReviewPage";
 import CodeReviewCreatePage from "./pages/CodeReviewCreatePage";
@@ -24,6 +25,27 @@ import UserProfilePage from "./pages/UserProfilePage";
 import "./styles/dark-overrides.css";
 
 const THEME_STORAGE_KEY = "cotre_theme";
+const ACCENT_STORAGE_KEY = "cotre_accent";
+const ACCENT_COLORS = ["red", "orange", "yellow", "green", "blue", "indigo", "violet", "pink"];
+
+function getInitialAccent() {
+  const storedAccent = window.localStorage.getItem(ACCENT_STORAGE_KEY);
+
+  if (ACCENT_COLORS.includes(storedAccent)) {
+    return storedAccent;
+  }
+
+  return "blue";
+}
+
+// 로그인한 회원만 서버에 저장한다. 실패해도 화면 테마는 바꾼 채로 두고 다음 로그인 때 서버 값을 다시 불러온다
+function saveThemeToServer(change) {
+  if (!isAuthenticated()) {
+    return;
+  }
+
+  updateMyTheme(change).catch(() => {});
+}
 
 function getInitialTheme() {
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -56,9 +78,21 @@ function ProtectedRoute({ children, message }) {
   return children;
 }
 
-function AppRoutes({ theme, onToggleTheme }) {
+function AppRoutes({ theme, accent, onToggleTheme, onChangeTheme, onChangeAccent, onLoadServerTheme }) {
   const location = useLocation();
   const isAuthPage = ["/login", "/signup"].includes(location.pathname);
+  const token = getAuthToken();
+
+  // 로그인하면 서버에 저장된 테마를 불러온다(서버 값 우선)
+  useEffect(() => {
+    if (!token) {
+      return;
+    }
+
+    getMyTheme()
+      .then(onLoadServerTheme)
+      .catch(() => {});
+  }, [token, onLoadServerTheme]);
 
   return (
     <>
@@ -106,7 +140,12 @@ function AppRoutes({ theme, onToggleTheme }) {
           path="/mypage"
           element={
             <ProtectedRoute message="마이페이지를 보려면 먼저 로그인해주세요.">
-              <MyPage />
+              <MyPage
+                theme={theme}
+                accent={accent}
+                onChangeTheme={onChangeTheme}
+                onChangeAccent={onChangeAccent}
+              />
             </ProtectedRoute>
           }
         />
@@ -161,19 +200,49 @@ function AppRoutes({ theme, onToggleTheme }) {
 
 function App() {
   const [theme, setTheme] = useState(getInitialTheme);
+  const [accent, setAccent] = useState(getInitialAccent);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem(THEME_STORAGE_KEY, theme);
   }, [theme]);
 
+  useEffect(() => {
+    document.documentElement.dataset.accent = accent;
+    window.localStorage.setItem(ACCENT_STORAGE_KEY, accent);
+  }, [accent]);
+
+  // 서버는 대문자(DARK, PINK), 화면은 소문자(dark, pink)를 쓴다
+  // 서버 테마를 불러오는 effect가 매번 다시 돌지 않도록 함수를 한 번만 만든다
+  const loadServerTheme = useCallback((serverTheme) => {
+    setTheme(serverTheme.mode.toLowerCase());
+    setAccent(serverTheme.color.toLowerCase());
+  }, []);
+
+  function changeTheme(nextTheme) {
+    setTheme(nextTheme);
+    saveThemeToServer({ mode: nextTheme.toUpperCase() });
+  }
+
   function toggleTheme() {
-    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
+    changeTheme(theme === "dark" ? "light" : "dark");
+  }
+
+  function changeAccent(nextAccent) {
+    setAccent(nextAccent);
+    saveThemeToServer({ color: nextAccent.toUpperCase() });
   }
 
   return (
     <BrowserRouter>
-      <AppRoutes theme={theme} onToggleTheme={toggleTheme} />
+      <AppRoutes
+        theme={theme}
+        accent={accent}
+        onToggleTheme={toggleTheme}
+        onChangeTheme={changeTheme}
+        onChangeAccent={changeAccent}
+        onLoadServerTheme={loadServerTheme}
+      />
     </BrowserRouter>
   );
 }

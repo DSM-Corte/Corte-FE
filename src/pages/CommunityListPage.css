@@ -161,7 +161,7 @@
 .community-sort__select:focus-within {
   border-color: var(--color-primary);
   background: var(--color-canvas);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .community-sort select {
@@ -309,7 +309,7 @@
 
 .community-table__row--link:hover,
 .community-table__row--link:focus-visible {
-  border-color: rgba(0, 102, 204, 0.18);
+  border-color: color-mix(in srgb, var(--color-primary) 18%, transparent);
   background: var(--color-surface-pearl);
   box-shadow: inset 3px 0 0 var(--color-primary);
   outline: none;

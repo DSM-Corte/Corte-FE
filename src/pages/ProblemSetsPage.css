@@ -155,7 +155,7 @@
   margin-top: var(--space-xs);
   padding: 0 var(--space-xs);
   border-radius: var(--radius-pill);
-  background: rgba(0, 102, 204, 0.1);
+  background: color-mix(in srgb, var(--color-primary) 10%, transparent);
   color: var(--color-primary);
   font-size: var(--font-size-fine);
   font-style: normal;
@@ -312,7 +312,7 @@
 
 .problem-set-create-card textarea:focus {
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .problem-set-create-summary,
@@ -355,9 +355,9 @@
 .problem-set-selected-list button {
   min-height: 30px;
   padding: 0 var(--space-sm);
-  border: 1px solid rgba(0, 102, 204, 0.18);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 18%, transparent);
   border-radius: var(--radius-pill);
-  background: rgba(0, 102, 204, 0.08);
+  background: color-mix(in srgb, var(--color-primary) 8%, transparent);
   color: var(--color-primary);
   font-size: var(--font-size-fine);
   font-weight: var(--font-weight-bold);
@@ -411,8 +411,8 @@
 
 .problem-set-picker-list button:hover,
 .problem-set-picker-list button.is-selected {
-  border-color: rgba(0, 102, 204, 0.3);
-  background: rgba(0, 102, 204, 0.06);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, transparent);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
   transform: translateY(-1px);
 }
 
