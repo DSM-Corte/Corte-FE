@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { getAuthToken, getCurrentUser } from "../api/AuthApi";
 import { getMyGrass } from "../api/UserApi";
+import MyReviewActivity from "../components/MyReviewActivity";
+import MyProblemAnalysis from "../components/MyProblemAnalysis";
 import "./MyPage.css";
 
 const GRASS_DAYS = 365;
@@ -345,6 +347,8 @@ function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
             </p>
           )}
         </article>
+        <MyProblemAnalysis />
+        <MyReviewActivity />
 
         <article className="mypage-theme-card">
           <div className="mypage-section-heading">

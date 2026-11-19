@@ -2461,3 +2461,464 @@
     height: calc(100vh - 156px);
   }
 }
+
+.code-review-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.review-line-comment__suggestion {
+  margin: 8px 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.12);
+  font-size: 13px;
+}
+
+.review-line-comment__reply {
+  margin: 8px 0 0 16px;
+  padding-left: 12px;
+  border-left: 2px solid rgba(127, 127, 127, 0.3);
+}
+
+.review-line-comment textarea,
+.review-inline-comment-form textarea {
+  width: 100%;
+  min-height: 72px;
+  margin: 6px 0;
+  box-sizing: border-box;
+}
+
+.review-applied-run {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.review-applied-run textarea {
+  min-height: 64px;
+  box-sizing: border-box;
+}
+
+.review-applied-run__output {
+  margin: 0;
+  padding: 10px 12px;
+  overflow-x: auto;
+  border-radius: 8px;
+  background: rgba(127, 127, 127, 0.12);
+  white-space: pre-wrap;
+}
+
+/* ===== 리뷰 상세 화면 디자인 정리 (이 블록이 위의 오버라이드를 최종 결정한다) ===== */
+main.review-diff-page.review-diff-page {
+  --rv-bg: #0b0f17;
+  --rv-surface: #121826;
+  --rv-surface-2: #182033;
+  --rv-border: #263146;
+  --rv-text: #e6edf3;
+  --rv-muted: #8b98ad;
+  --rv-accent: #4c8dff;
+  --rv-accent-soft: rgba(76, 141, 255, 0.14);
+  --rv-width: 1080px;
+  background: var(--rv-bg);
+  color: var(--rv-text);
+  padding-bottom: 80px;
+}
+
+/* 헤더 */
+main.review-diff-page.review-diff-page .review-diff-header {
+  min-height: 76px;
+  padding: 12px max(24px, calc((100% - var(--rv-width)) / 2));
+  border-bottom: 1px solid var(--rv-border);
+  background: rgba(11, 15, 23, 0.88);
+  backdrop-filter: blur(10px);
+}
+
+main.review-diff-page.review-diff-page .review-diff-header__back {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--rv-border);
+  border-radius: 12px;
+  background: var(--rv-surface);
+  color: var(--rv-text);
+}
+
+main.review-diff-page.review-diff-page .review-diff-header__back:hover {
+  border-color: var(--rv-accent);
+}
+
+main.review-diff-page.review-diff-page .review-diff-header p {
+  margin-bottom: 2px;
+  color: var(--rv-muted);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+main.review-diff-page.review-diff-page .review-diff-header h1 {
+  color: var(--rv-text);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
+main.review-diff-page.review-diff-page .review-status-pill {
+  min-height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(52, 211, 153, 0.35);
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  font-size: 13px;
+}
+
+main.review-diff-page.review-diff-page .review-status-pill--closed {
+  border-color: rgba(148, 163, 184, 0.35);
+  background: rgba(148, 163, 184, 0.12);
+  color: var(--rv-muted);
+}
+
+main.review-diff-page.review-diff-page .review-closed-banner {
+  justify-content: center;
+  border-bottom: 1px solid var(--rv-border);
+  background: var(--rv-surface);
+}
+
+/* 본문 폭 */
+main.review-diff-page.review-diff-page .review-diff-shell,
+main.review-diff-page.review-diff-page .review-suggestion-section--full {
+  width: calc(100% - 48px);
+  max-width: var(--rv-width);
+  margin: 28px auto 0;
+  padding: 0;
+  display: block;
+}
+
+/* 코드 카드 */
+main.review-diff-page.review-diff-page .review-diff-file {
+  border: 1px solid var(--rv-border);
+  border-radius: 16px;
+  background: var(--rv-surface);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28);
+}
+
+main.review-diff-page.review-diff-page .review-diff-file__bar {
+  min-height: 46px;
+  border-bottom: 1px solid var(--rv-border);
+  background: var(--rv-surface-2);
+}
+
+main.review-diff-page.review-diff-page .review-diff-file__path strong {
+  color: var(--rv-text);
+  font-size: 14px;
+}
+
+main.review-diff-page.review-diff-page .review-diff-file__meta span {
+  padding: 3px 12px;
+  border: 1px solid var(--rv-border);
+  border-radius: 999px;
+  background: var(--rv-surface);
+  color: var(--rv-muted);
+  font-size: 12px;
+}
+
+main.review-diff-page.review-diff-page .review-diff-code {
+  padding: 8px 0;
+}
+
+main.review-diff-page.review-diff-page .review-diff-line-block,
+main.review-diff-page.review-diff-page .review-diff-line-block.is-active {
+  min-width: 0;
+  background: transparent;
+}
+
+main.review-diff-page.review-diff-page .review-diff-line-block.is-active > .review-diff-code-line {
+  background: var(--rv-accent-soft);
+}
+
+main.review-diff-page.review-diff-page .review-diff-code-line {
+  grid-template-columns: 40px 44px 8px minmax(0, 1fr);
+}
+
+main.review-diff-page.review-diff-page .review-diff-code-line:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+main.review-diff-page.review-diff-page .review-diff-code-line--readonly:hover {
+  background: transparent;
+}
+
+main.review-diff-page.review-diff-page .review-line-marker {
+  visibility: hidden;
+}
+
+main.review-diff-page.review-diff-page .review-line-number {
+  color: #55637b;
+  user-select: none;
+}
+
+main.review-diff-page.review-diff-page .review-diff-code-line code,
+main.review-diff-page.review-diff-page .review-diff-code-line code span {
+  color: var(--rv-text);
+  font-size: 13.5px;
+}
+
+main.review-diff-page.review-diff-page .review-line-add-button {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: var(--rv-accent);
+  font-size: 16px;
+}
+
+/* 줄 코멘트 스레드 */
+main.review-diff-page.review-diff-page .review-line-comment-thread {
+  margin: 4px 16px 12px 92px;
+  display: grid;
+  gap: 10px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment-thread > strong {
+  color: var(--rv-muted);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment,
+main.review-diff-page.review-diff-page .review-diff-line-block .review-line-comment {
+  margin: 0;
+  padding: 14px 16px;
+  border: 1px solid var(--rv-border);
+  border-left: 3px solid var(--rv-accent);
+  border-radius: 12px;
+  background: var(--rv-surface-2);
+  color: var(--rv-text);
+}
+
+main.review-diff-page.review-diff-page .review-line-comment strong {
+  color: var(--rv-text);
+  font-size: 14px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment__header > span {
+  display: inline-flex;
+  gap: 6px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment__body {
+  margin-top: 8px;
+  color: var(--rv-text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment button,
+main.review-diff-page.review-diff-page .review-line-comment__reply button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 1px solid var(--rv-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--rv-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment button:hover,
+main.review-diff-page.review-diff-page .review-line-comment__reply button:hover {
+  border-color: var(--rv-accent);
+  color: var(--rv-text);
+}
+
+main.review-diff-page.review-diff-page .review-line-comment__suggestion {
+  margin: 10px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(52, 211, 153, 0.28);
+  border-radius: 10px;
+  background: rgba(52, 211, 153, 0.07);
+  color: #a7f3d0;
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment__reply {
+  margin: 10px 0 0;
+  padding: 8px 0 0 14px;
+  border-left: 2px solid var(--rv-border);
+  font-size: 13.5px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment__reply strong {
+  font-size: 13px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment > button {
+  margin-top: 10px;
+}
+
+/* 입력 폼 */
+main.review-diff-page.review-diff-page .review-inline-comment-form {
+  width: auto;
+  margin: 8px 16px 12px 92px;
+  padding: 14px;
+  gap: 10px;
+  border: 1px solid var(--rv-border);
+  border-radius: 12px;
+  background: var(--rv-surface-2);
+  box-shadow: none;
+}
+
+main.review-diff-page.review-diff-page .review-suggestion-section--full > .review-inline-comment-form {
+  margin: 14px 0 0;
+}
+
+main.review-diff-page.review-diff-page .review-inline-comment-form__title {
+  min-height: 0;
+  padding: 0;
+}
+
+main.review-diff-page.review-diff-page textarea {
+  width: 100%;
+  min-height: 84px;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--rv-border);
+  border-radius: 10px;
+  background: var(--rv-bg);
+  color: var(--rv-text);
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+main.review-diff-page.review-diff-page textarea:focus {
+  outline: none;
+  border-color: var(--rv-accent);
+  box-shadow: 0 0 0 3px var(--rv-accent-soft);
+}
+
+main.review-diff-page.review-diff-page textarea::placeholder {
+  color: #5f6d84;
+}
+
+main.review-diff-page.review-diff-page .review-inline-comment-form__footer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+main.review-diff-page.review-diff-page .review-inline-comment-form__footer > div {
+  display: flex;
+  gap: 8px;
+}
+
+/* 하단 섹션(적용 코드, 전체 댓글) */
+main.review-diff-page.review-diff-page .review-suggestion-section--full {
+  padding: 22px 24px 24px;
+  border: 1px solid var(--rv-border);
+  border-radius: 16px;
+  background: var(--rv-surface);
+}
+
+main.review-diff-page.review-diff-page .review-section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+main.review-diff-page.review-diff-page .review-suggestion-section--full .review-section-heading p {
+  margin: 0 0 2px;
+  color: var(--rv-accent);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+main.review-diff-page.review-diff-page .review-suggestion-section--full .review-section-heading h2 {
+  margin: 0;
+  color: var(--rv-text);
+  font-size: 20px;
+  font-weight: 800;
+}
+
+main.review-diff-page.review-diff-page .review-suggestion-section--full .code-review-empty {
+  min-height: 0;
+  padding: 22px;
+  border: 1px dashed var(--rv-border);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--rv-muted);
+  font-weight: 500;
+}
+
+main.review-diff-page.review-diff-page .review-suggestion-section--full > .review-line-comment {
+  margin-top: 10px;
+}
+
+main.review-diff-page.review-diff-page .review-diff {
+  overflow: hidden;
+  border: 1px solid var(--rv-border);
+  border-radius: 12px;
+}
+
+main.review-diff-page.review-diff-page .review-applied-run {
+  margin-top: 14px;
+}
+
+main.review-diff-page.review-diff-page .review-applied-run__output {
+  border: 1px solid var(--rv-border);
+  background: var(--rv-bg);
+  color: var(--rv-text);
+  font-family: var(--font-code);
+  font-size: 13px;
+}
+
+main.review-diff-page.review-diff-page .code-review-message {
+  margin: 14px 0 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  border-radius: 10px;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fcd34d;
+  font-size: 13.5px;
+}
+
+@media (max-width: 720px) {
+  main.review-diff-page.review-diff-page .review-line-comment-thread,
+  main.review-diff-page.review-diff-page .review-inline-comment-form {
+    margin-left: 16px;
+  }
+}
+
+/* 답글·전체 댓글의 마크다운이 커뮤니티 글쓰기용 min-height(720px)를 물려받지 않게 한다 */
+main.review-diff-page.review-diff-page .review-line-comment .markdown-preview {
+  min-height: 0;
+  height: auto;
+  padding: 0;
+  color: inherit;
+  font-size: 13.5px;
+  line-height: 1.6;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment .markdown-preview > :first-child {
+  margin-top: 0;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment .markdown-preview > :last-child {
+  margin-bottom: 0;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment form {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+main.review-diff-page.review-diff-page .review-line-comment form textarea {
+  min-height: 64px;
+}

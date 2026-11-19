@@ -15,3 +15,7 @@ export async function getMyTheme() {
 export async function updateMyTheme(change) {
   return request("/api/users/me/theme", { method: "PATCH", body: change });
 }
+
+export function getMyStats() {
+  return request("/api/users/me/stats");
+}

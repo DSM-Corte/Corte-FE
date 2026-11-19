@@ -1,16 +1,27 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { createCodeReview, getReviewableSubmission } from "../api/CodeReviewApi";
+import { createReviewRequest } from "../api/CodeReviewApi";
+import {
+  getLanguageLabel,
+  getProblem,
+  getSubmission,
+  getVerdictLabel,
+} from "../api/JudgeApi";
 import Button from "../components/common/Button";
 import "./CodeReviewPage.css";
+
+const REQUEST_ERROR_MESSAGES = {
+  R003: "본인의 제출만 리뷰를 요청할 수 있습니다.",
+  R004: "제출 기록을 찾을 수 없습니다.",
+  R005: "정답 처리된 제출만 리뷰를 요청할 수 있습니다.",
+};
 
 function CodeReviewCreatePage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const submissionId = searchParams.get("submissionId") ?? "";
   const [submission, setSubmission] = useState(null);
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [problemTitle, setProblemTitle] = useState("");
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -20,20 +31,24 @@ function CodeReviewCreatePage() {
 
     async function fetchSubmission() {
       try {
-        const nextSubmission = await getReviewableSubmission(submissionId);
+        const nextSubmission = await getSubmission(submissionId);
 
         if (ignore) {
           return;
         }
 
         setSubmission(nextSubmission);
-        setTitle(`${nextSubmission.problemTitle} 풀이 리뷰`);
-        setDescription(
-          "풀이 의도, 시간 복잡도, 막혔던 부분을 간단히 적어주세요.",
-        );
+        // 제목은 화면 표시용이라 문제 조회가 실패해도 요청은 할 수 있다
+        getProblem(nextSubmission.problemId)
+          .then((problem) => !ignore && setProblemTitle(problem.title))
+          .catch(() => {});
       } catch (error) {
         if (!ignore) {
-          setMessage(error.message);
+          setMessage(
+            [403, 404].includes(error.status)
+              ? "제출 기록을 찾을 수 없습니다."
+              : error.message,
+          );
         }
       } finally {
         if (!ignore) {
@@ -55,28 +70,28 @@ function CodeReviewCreatePage() {
     setMessage("");
 
     try {
-      const review = await createCodeReview({
-        submissionId,
-        title,
-        description,
-      });
+      const review = await createReviewRequest(submissionId);
       navigate(`/code-review/${review.id}`);
     } catch (error) {
-      setMessage(error.message);
+      if (error.code === "R006") {
+        setMessage("이미 이 제출로 리뷰를 요청했습니다. 목록에서 확인해주세요.");
+      } else {
+        setMessage(REQUEST_ERROR_MESSAGES[error.code] ?? error.message);
+      }
     } finally {
       setIsSaving(false);
     }
   }
 
   if (isLoading) {
-    return <main className="code-review-state">코드 리뷰 준비 중입니다.</main>;
+    return <main className="code-review-state">리뷰 요청을 준비 중입니다.</main>;
   }
 
   if (!submission) {
     return (
       <main className="code-review-state">
-        <p>{message || "리뷰 가능한 제출을 찾을 수 없습니다."}</p>
-        <Link to="/problems">문제 목록으로 돌아가기</Link>
+        <p>{message || "리뷰를 요청할 제출을 찾을 수 없습니다."}</p>
+        <Link to="/submissions">제출 기록으로 돌아가기</Link>
       </main>
     );
   }
@@ -85,38 +100,16 @@ function CodeReviewCreatePage() {
     <main className="code-review-page">
       <section className="code-review-hero code-review-hero--compact">
         <p className="code-review-hero__eyebrow">New Review</p>
-        <h1>{submission.problemTitle}</h1>
-        <p>정답 제출 코드를 바탕으로 코드 리뷰를 생성합니다.</p>
+        <h1>{problemTitle || `문제 #${submission.problemId}`}</h1>
+        <p>정답 제출 코드를 그대로 올려 다른 사용자에게 리뷰를 요청합니다.</p>
       </section>
 
       <section className="code-review-create-shell">
         <form className="code-review-create-card" onSubmit={handleSubmit}>
-          <label>
-            <span>제목</span>
-            <input
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="코드 리뷰 제목"
-              required
-            />
-          </label>
-
-          <label>
-            <span>코드 설명</span>
-            <textarea
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              placeholder="풀이 아이디어, 복잡도, 고민한 부분을 적어주세요."
-              required
-            />
-          </label>
-
           <div className="code-review-submission-preview">
-            <span>{submission.language}</span>
-            <strong>{submission.result}</strong>
-            <small>
-              {submission.runtimeMs}ms · {(submission.memoryKb / 1024).toFixed(1)} MB
-            </small>
+            <span>{getLanguageLabel(submission.language)}</span>
+            <strong>{getVerdictLabel(submission.verdict)}</strong>
+            <small>제출 #{submission.id}</small>
           </div>
 
           {message && <p className="code-review-message">{message}</p>}
@@ -126,7 +119,7 @@ function CodeReviewCreatePage() {
               취소
             </Link>
             <Button type="submit" loading={isSaving}>
-              코드 리뷰받기
+              리뷰 요청하기
             </Button>
           </div>
         </form>
