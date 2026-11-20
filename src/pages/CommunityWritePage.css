@@ -81,7 +81,7 @@
 .community-title-field input:focus {
   border-color: var(--color-primary);
   background: var(--color-canvas);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .community-write-meta-fields {
@@ -116,7 +116,7 @@
 .community-write-meta-fields select:focus {
   border-color: var(--color-primary);
   background: var(--color-canvas);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .community-problem-search {
@@ -142,7 +142,7 @@
 .community-problem-search__input:focus-within {
   border-color: var(--color-primary);
   background: var(--color-canvas);
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.08);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 8%, transparent);
 }
 
 .community-problem-search__input svg {
@@ -177,9 +177,9 @@
   justify-content: space-between;
   gap: var(--space-sm);
   padding: var(--space-xs) var(--space-sm);
-  border: 1px solid rgba(0, 102, 204, 0.16);
+  border: 1px solid color-mix(in srgb, var(--color-primary) 16%, transparent);
   border-radius: var(--radius-md);
-  background: rgba(0, 102, 204, 0.06);
+  background: color-mix(in srgb, var(--color-primary) 6%, transparent);
   color: var(--color-primary);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
@@ -395,7 +395,7 @@
 }
 
 .community-editor-pane--write textarea::selection {
-  background: rgba(0, 102, 204, 0.16);
+  background: color-mix(in srgb, var(--color-primary) 16%, transparent);
 }
 
 .community-editor-pane--preview {

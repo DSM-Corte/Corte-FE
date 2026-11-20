@@ -131,6 +131,19 @@ export function deleteReply(id, replyId) {
   });
 }
 
+export function createReplyReaction(id, replyId, type) {
+  return request(reviewPath(id, `/replies/${encodeURIComponent(replyId)}/reactions`), {
+    method: "POST",
+    body: { type },
+  });
+}
+
+export function deleteReplyReaction(id, replyId, reactionId) {
+  return request(reviewPath(id, `/replies/${encodeURIComponent(replyId)}/reactions/${encodeURIComponent(reactionId)}`), {
+    method: "DELETE",
+  });
+}
+
 // 마이페이지: 내가 요청한 리뷰. status는 ALL(기본) | OPEN | CLOSED
 export function getMyReviewRequests({ status, page, size } = {}) {
   return request(`/api/users/me/review-requests?${pageQuery({ page, size, status })}`);

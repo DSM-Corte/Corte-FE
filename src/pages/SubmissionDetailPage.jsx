@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   formatSubmittedAt,
@@ -8,6 +8,7 @@ import {
   getVerdictLabel,
   getVerdictTone,
 } from "../api/JudgeApi";
+import AiReviewPanel from "../components/submissions/AiReviewPanel";
 import "./ProblemSubmissionsPage.css";
 
 function SubmissionDetailPage() {
@@ -16,6 +17,8 @@ function SubmissionDetailPage() {
   const [submission, setSubmission] = useState(null);
   const [problemTitle, setProblemTitle] = useState("");
   const [error, setError] = useState("");
+  const [aiReview, setAiReview] = useState(null);
+  const handleAiReviewChange = useCallback((review) => setAiReview(review), []);
 
   useEffect(() => {
     let ignore = false;
@@ -66,6 +69,16 @@ function SubmissionDetailPage() {
       ignore = true;
     };
   }, [submissionId, navigate]);
+
+  const aiCommentsByLine = useMemo(() => {
+    const byLine = new Map();
+
+    (aiReview?.comments ?? []).forEach((comment) => {
+      byLine.set(comment.line, [...(byLine.get(comment.line) ?? []), comment.body]);
+    });
+
+    return byLine;
+  }, [aiReview]);
 
   const codeLines = useMemo(
     () => String(submission?.code ?? "").split("\n"),
@@ -123,15 +136,24 @@ function SubmissionDetailPage() {
           </div>
           <div className="submission-detail__code" role="table" aria-label="제출 코드">
             {codeLines.map((line, index) => (
-              <div className="submission-detail__code-line" role="row" key={index}>
-                <span role="cell">{index + 1}</span>
-                <code role="cell">{line || " "}</code>
-              </div>
+              <Fragment key={index}>
+                <div className="submission-detail__code-line" role="row">
+                  <span role="cell">{index + 1}</span>
+                  <code role="cell">{line || " "}</code>
+                </div>
+                {(aiCommentsByLine.get(index + 1) ?? []).map((body, commentIndex) => (
+                  <div className="ai-review__line-comment" role="row" key={commentIndex}>
+                    <span role="cell">AI</span>
+                    <p role="cell">{body}</p>
+                  </div>
+                ))}
+              </Fragment>
             ))}
           </div>
         </article>
 
         <aside className="submission-detail__side">
+          <AiReviewPanel submissionId={submissionId} onReviewChange={handleAiReviewChange} />
           <article className="submission-detail__metric-card">
             <span>통과한 테스트</span>
             <strong>

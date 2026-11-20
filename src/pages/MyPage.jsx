@@ -15,6 +15,21 @@ const GRASS_LEVELS = [
   { level: 3, label: "3~4문제" },
   { level: 4, label: "5문제 이상" },
 ];
+const THEME_MODES = [
+  { value: "light", label: "라이트" },
+  { value: "dark", label: "다크" },
+];
+// swatch는 동그라미에 보여줄 색이다. 지금 고른 강조색과 상관없이 늘 같은 색으로 보여야 해서 직접 적는다
+const ACCENT_OPTIONS = [
+  { value: "red", label: "빨강", swatch: "#d1242f" },
+  { value: "orange", label: "주황", swatch: "#ea580c" },
+  { value: "yellow", label: "노랑", swatch: "#eab308" },
+  { value: "green", label: "초록", swatch: "#16a34a" },
+  { value: "blue", label: "파랑", swatch: "#0066cc" },
+  { value: "indigo", label: "남색", swatch: "#4338ca" },
+  { value: "violet", label: "보라", swatch: "#9333ea" },
+  { value: "pink", label: "핑크", swatch: "#ec4899" },
+];
 
 function getDateKey(date) {
   const year = date.getFullYear();
@@ -162,7 +177,7 @@ function buildStats(grass) {
   };
 }
 
-function MyPage() {
+function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [grass, setGrass] = useState([]);
@@ -334,6 +349,50 @@ function MyPage() {
         </article>
         <MyProblemAnalysis />
         <MyReviewActivity />
+
+        <article className="mypage-theme-card">
+          <div className="mypage-section-heading">
+            <div>
+              <h2>테마</h2>
+              <p>고른 테마는 로그인한 모든 기기에 똑같이 적용돼요</p>
+            </div>
+          </div>
+
+          <div className="mypage-theme-row">
+            <span className="mypage-theme-row__label">모드</span>
+            <div className="mypage-theme-modes">
+              {THEME_MODES.map((mode) => (
+                <button
+                  type="button"
+                  className="mypage-theme-mode"
+                  aria-pressed={theme === mode.value}
+                  onClick={() => onChangeTheme(mode.value)}
+                  key={mode.value}
+                >
+                  {mode.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mypage-theme-row">
+            <span className="mypage-theme-row__label">강조색</span>
+            <div className="mypage-theme-colors">
+              {ACCENT_OPTIONS.map((option) => (
+                <button
+                  type="button"
+                  className="mypage-theme-color"
+                  aria-pressed={accent === option.value}
+                  aria-label={option.label}
+                  title={option.label}
+                  style={{ background: option.swatch }}
+                  onClick={() => onChangeAccent(option.value)}
+                  key={option.value}
+                />
+              ))}
+            </div>
+          </div>
+        </article>
       </section>
     </main>
   );

@@ -24,6 +24,7 @@ import {
   waitForJob,
 } from "../api/JudgeApi";
 import MarkdownPreview from "../components/community/MarkdownPreview";
+import ReplyReactions from "../components/ReplyReactions";
 import Button from "../components/common/Button";
 import "./CodeReviewPage.css";
 
@@ -128,13 +129,14 @@ function isMine(item, currentUserId) {
 }
 
 // 답글 목록: 쓴 사람만 수정·삭제하고 닫힌 요청에서는 모두 읽기 전용이다
-function ReplyList({ replies, currentUserId, disabled, onUpdate, onDelete }) {
+function ReplyList({ replies, currentUserId, disabled, onUpdate, onDelete, requestId, onMutate, parentAuthorId }) {
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState("");
 
   return replies.map((reply) => (
     <div className="review-line-comment__reply" key={reply.id}>
       <strong>{reply.author}</strong>
+      <ReplyReactions parentAuthorId={parentAuthorId} requestId={requestId} reply={reply} currentUserId={currentUserId} closed={disabled} onMutate={onMutate} />
       {editingId === reply.id ? (
         <>
           <textarea value={draft} onChange={(event) => setDraft(event.target.value)} />
@@ -192,6 +194,8 @@ function CommentCard({
   onReply,
   onReplyUpdate,
   onReplyDelete,
+  requestId,
+  onMutate,
   onApply,
 }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -277,6 +281,9 @@ function CommentCard({
       )}
 
       <ReplyList
+        parentAuthorId={item.authorId}
+        requestId={requestId}
+        onMutate={onMutate}
         replies={item.replies ?? []}
         currentUserId={currentUserId}
         disabled={isClosed}
@@ -533,6 +540,8 @@ function CodeReviewDetailPage() {
       <CommentCard
         key={item.id}
         item={item}
+        requestId={id}
+        onMutate={mutate}
         isLine={isLine}
         isRequester={isRequester}
         isClosed={isClosed}

@@ -6,6 +6,16 @@ export async function getMyGrass() {
   return request("/api/users/me/grass");
 }
 
+// { mode: "DARK", color: "PINK" } 형태로 온다. 한 번도 안 골랐으면 LIGHT와 BLUE다
+export async function getMyTheme() {
+  return request("/api/users/me/theme");
+}
+
+// 바꿀 값만 보낸다. 예: { mode: "DARK" } 또는 { color: "PINK" }
+export async function updateMyTheme(change) {
+  return request("/api/users/me/theme", { method: "PATCH", body: change });
+}
+
 export function getMyStats() {
   return request("/api/users/me/stats");
 }
