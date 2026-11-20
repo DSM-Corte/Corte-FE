@@ -133,7 +133,7 @@
 
 .code-editor .cm-activeLine,
 .code-editor .cm-activeLineGutter {
-  background-color: rgba(59, 130, 246, 0.12);
+  background-color: color-mix(in srgb, var(--color-primary) 12%, transparent);
 }
 
 .code-editor .cm-focused {
@@ -142,7 +142,7 @@
 
 .code-editor .cm-selectionBackground,
 .code-editor .cm-focused .cm-selectionBackground {
-  background: rgba(59, 130, 246, 0.35);
+  background: color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
 .cm-tooltip.cm-tooltip-autocomplete,
@@ -178,7 +178,7 @@
 }
 
 .cm-tooltip.cm-tooltip-autocomplete ul li[aria-selected] {
-  background: rgba(59, 130, 246, 0.22);
+  background: color-mix(in srgb, var(--color-primary) 22%, transparent);
   color: #f8fafc;
 }
 
