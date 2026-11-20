@@ -65,7 +65,7 @@
   padding: 0 var(--space-lg);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .problem-sets-create-link:hover {
@@ -247,7 +247,7 @@
 
 .problem-set-card__action:hover {
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .problem-set-create {

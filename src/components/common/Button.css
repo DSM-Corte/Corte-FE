@@ -77,7 +77,7 @@
 /* 주요 버튼 */
 .button--contained {
   background-color: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .button--contained:hover:not(:disabled) {
