@@ -26,6 +26,7 @@ export const tierRankOptions = [
 export function createDefaultFilters() {
   return {
     keyword: "",
+    difficultyTier: "",
     tierMinIndex: "0",
     tierMaxIndex: String(tierRankOptions.length - 1),
     selectedTags: [],
@@ -49,8 +50,7 @@ export const problemSortKeys = sortOptions.map((option) => option.key);
 
 export const statusOptions = [
   { key: "all", label: "전체" },
-  { key: "solved", label: "해결" },
-  { key: "attempted", label: "시도했으나 미해결" },
+  { key: "solved", label: "해결함" },
   { key: "unsolved", label: "미해결" },
 ];
 
@@ -58,3 +58,14 @@ export function getTierRankIndex(tier) {
   const index = tierRankOptions.indexOf(tier);
   return index === -1 ? 0 : index;
 }
+
+export const difficultyTierOptions = [
+  { key: "", label: "전체" },
+  { key: "UNRATED", label: "미지정" },
+  { key: "BRONZE", label: "브론즈" },
+  { key: "SILVER", label: "실버" },
+  { key: "GOLD", label: "골드" },
+  { key: "PLATINUM", label: "플래티넘" },
+  { key: "DIAMOND", label: "다이아" },
+  { key: "RUBY", label: "루비" },
+];

@@ -1,6 +1,8 @@
 import { mockProblems } from "../data/mockProblem.js";
 import { getRecommendedProblemSet } from "../data/problemSetDefinitions.js";
 import { getTierRankIndex } from "../components/problems/problemListConfig.js";
+import { request } from "./apiClient.js";
+import { toWorkbookProblem } from "./ProblemSetApi.js";
 import { getCurrentUserId } from "./AuthApi.js";
 import { getCustomProblemSet, getWorkbookCatalogWithProgress, getWorkbookProblemCatalog } from "./ProblemSetApi.js";
 import { getUserSubmissions } from "./submissionStorage.js";
@@ -58,7 +60,7 @@ function matchesStatus(problem, status) {
   }
 
   if (status === "unsolved") {
-    return !problem.attempted && !problem.solved;
+    return !problem.solved;
   }
 
   return true;
@@ -188,6 +190,7 @@ export async function getProblemList(options = {}) {
     useServerCatalog = false,
     serverCatalog,
     keyword = "",
+    difficultyTier = "",
     tierMinIndex = "0",
     tierMaxIndex = "29",
     selectedTags = [],
@@ -205,9 +208,47 @@ export async function getProblemList(options = {}) {
   } = options;
 
   const useServer = useServerCatalog || Boolean(problemSetId);
-  const userProblems = useServer
+  let userProblems = useServer
     ? (serverCatalog ?? await getWorkbookCatalogWithProgress())
     : getUserProblems();
+
+  if (useServer) {
+    const query = new URLSearchParams({ size: String(pageSize), page: String(page - 1) });
+    if (difficultyTier) query.set("difficultyTier", difficultyTier);
+    query.set("solveStatus", { solved: "SOLVED", unsolved: "UNSOLVED" }[status] ?? "ALL");
+    const simplePage = !keyword.trim() && selectedTags.length === 0 && !problemSetId
+      && sortKey === "id" && sortDirection === "desc";
+    const progress = new Map(userProblems.map((problem) => [Number(problem.id), problem]));
+    const withProgress = (problem) => ({ ...toWorkbookProblem(problem),
+      solved: status === "solved" || (status !== "unsolved" && Boolean(progress.get(Number(problem.id))?.solved)),
+      attempted: Boolean(progress.get(Number(problem.id))?.attempted),
+    });
+    if (simplePage) {
+      let result = await request(`/api/problems?${query}`);
+      if (result.totalPages > 0 && result.page >= result.totalPages) {
+        query.set("page", String(result.totalPages - 1));
+        result = await request(`/api/problems?${query}`);
+      }
+      const currentPage = result.page + 1;
+      return {
+        items: result.content.map(withProgress), totalCount: result.totalElements,
+        currentPage, pageSize: result.size, totalPages: Math.max(1, result.totalPages),
+        startIndex: result.totalElements ? result.page * result.size + 1 : 0,
+        endIndex: Math.min(currentPage * result.size, result.totalElements),
+        hasPreviousPage: result.page > 0, hasNextPage: currentPage < result.totalPages,
+      };
+    }
+    // 기존 복수 태그·키워드·정렬은 서버에서 필터링한 목록에 적용한다.
+    userProblems = [];
+    query.set("size", "100");
+    let index = 0;
+    let result;
+    do {
+      query.set("page", String(index++));
+      result = await request(`/api/problems?${query}`);
+      userProblems.push(...result.content.map(withProgress));
+    } while (index < result.totalPages);
+  }
   const problemSetFilter = await getProblemSetFilter(problemSetId, userProblems);
 
   const filteredProblems = userProblems.filter((problem) => {
@@ -217,6 +258,7 @@ export async function getProblemList(options = {}) {
 
     return (
       tierAllowed &&
+      (useServer || !difficultyTier || problem.tier.toUpperCase().split(" ")[0] === difficultyTier) &&
       (!problemSetFilter || problemSetFilter.has(Number(problem.id))) &&
       matchesKeyword(problem, keyword) &&
       matchesTags(problem, selectedTags, tagMode) &&

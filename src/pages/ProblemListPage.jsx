@@ -11,6 +11,7 @@ import "./ProblemListPage.css";
 function ProblemListPage() {
   const {
     error,
+    loading,
     filters,
     pagination,
     problems,
@@ -64,12 +65,12 @@ function ProblemListPage() {
           sortDirection={sortDirection}
           onSort={updateSort}
         />
-        {error ? <p role="alert">{error}</p> : <ProblemTable problems={problems} />}
-        <ProblemPagination
+        {error ? <p role="alert">{error}</p> : loading ? <p role="status">문제를 불러오는 중입니다.</p> : <ProblemTable problems={problems} />}
+        {!loading && !error && <ProblemPagination
           pagination={pagination}
           onPageChange={setCurrentPage}
           onPageSizeChange={updatePageSize}
-        />
+        />}
       </section>
     </main>
   );
