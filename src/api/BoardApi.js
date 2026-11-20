@@ -1,128 +1,35 @@
-import { getCurrentUser } from "./AuthApi";
-import { mockProblems } from "../data/mockProblem";
-import { archivedSeedPostIds } from "../data/archivedSeedPosts";
+import { request } from "./apiClient";
 
-const BOARD_STORAGE_KEY = "cotre_mock_board_posts_v2";
+const BASE = "/api/posts";
 const DEFAULT_BOARD_PAGE_SIZE = 8;
+const SERVER_PAGE_SIZE_MAX = 100;
 
+// 백엔드 게시글에는 글 유형·연관 문제가 없어 모든 글이 "general"이다
 export const BOARD_POST_TYPES = [
   { key: "notice", label: "공지" },
   { key: "general", label: "일반 글" },
   { key: "problem", label: "문제 글" },
 ];
 
-const seedPosts = [
-  {
-    id: "post-seed-community-guide",
-    title: "COTRE 커뮤니티 이용 안내",
-    markdown:
-      "문제 풀이 과정, 막혔던 부분, 코드 리뷰 기록을 자유롭게 남길 수 있습니다. 직접 작성한 게시글은 이 목록에 바로 추가됩니다.",
-    authorId: "user-seed-cotre",
-    authorName: "cotre",
-    type: "notice",
-    relatedProblemId: "",
-    createdAt: "2026-06-01T00:00:00.000Z",
-    updatedAt: "2026-06-01T00:00:00.000Z",
-  },
-];
-
-function delay(ms = 150) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
+function postPath(id) {
+  return `${BASE}/${encodeURIComponent(id)}`;
 }
 
-function getStoredPosts() {
-  const rawPosts = window.localStorage.getItem(BOARD_STORAGE_KEY);
-
-  if (!rawPosts) {
-    return seedPosts;
-  }
-
-  try {
-    const storedPosts = JSON.parse(rawPosts);
-    const seedPostMap = new Map(seedPosts.map((post) => [post.id, post]));
-    const normalizedStoredPosts = storedPosts
-      .filter((post) => !archivedSeedPostIds.has(post.id) || seedPostMap.has(post.id))
-      .map((post) => seedPostMap.get(post.id) ?? post);
-    const storedPostIds = new Set(normalizedStoredPosts.map((post) => post.id));
-    const missingSeedPosts = seedPosts.filter((post) => !storedPostIds.has(post.id));
-
-    return [...normalizedStoredPosts, ...missingSeedPosts];
-  } catch {
-    window.localStorage.removeItem(BOARD_STORAGE_KEY);
-    return seedPosts;
-  }
+function toPost(response) {
+  return {
+    id: response.id,
+    title: response.title,
+    markdown: response.content ?? "",
+    authorName: response.author,
+    type: "general",
+    relatedProblem: undefined,
+    createdAt: response.createdAt,
+    updatedAt: response.updatedAt ?? response.createdAt,
+  };
 }
 
 function normalize(value) {
   return String(value ?? "").trim().toLowerCase();
-}
-
-function getRelatedProblem(problemId) {
-  const normalizedProblemId = Number(problemId);
-
-  if (!normalizedProblemId) {
-    return undefined;
-  }
-
-  return mockProblems.find((problem) => problem.id === normalizedProblemId);
-}
-
-function enrichPost(post) {
-  const normalizedType = post.type ?? "general";
-  const relatedProblem =
-    normalizedType === "problem" ? getRelatedProblem(post.relatedProblemId) : undefined;
-
-  return {
-    ...post,
-    type: normalizedType,
-    relatedProblem: relatedProblem
-      ? {
-          id: relatedProblem.id,
-          title: relatedProblem.title,
-          tier: relatedProblem.tier,
-        }
-      : undefined,
-  };
-}
-
-function matchesType(post, type) {
-  if (!type) {
-    return true;
-  }
-
-  return (post.type ?? "general") === type;
-}
-
-function matchesProblem(post, problemId) {
-  if (!problemId) {
-    return true;
-  }
-
-  const normalizedProblemId = Number(problemId);
-
-  if (!Number.isFinite(normalizedProblemId)) {
-    return false;
-  }
-
-  return post.type === "problem" && Number(post.relatedProblemId) === normalizedProblemId;
-}
-
-function matchesKeyword(post, keyword) {
-  const normalizedKeyword = normalize(keyword);
-
-  if (!normalizedKeyword) {
-    return true;
-  }
-
-  return (
-    normalize(post.title).includes(normalizedKeyword) ||
-    normalize(post.authorName).includes(normalizedKeyword) ||
-    (post.type === "problem" &&
-      normalize(post.relatedProblem?.title).includes(normalizedKeyword)) ||
-    String(post.relatedProblem?.id ?? "").includes(normalizedKeyword)
-  );
 }
 
 function sortPosts(posts, sortKey) {
@@ -133,13 +40,6 @@ function sortPosts(posts, sortKey) {
 
     if (sortKey === "title") {
       return left.title.localeCompare(right.title, "ko");
-    }
-
-    if (sortKey === "problem") {
-      return (left.relatedProblem?.title ?? "zzz").localeCompare(
-        right.relatedProblem?.title ?? "zzz",
-        "ko",
-      );
     }
 
     return new Date(right.createdAt) - new Date(left.createdAt);
@@ -167,123 +67,60 @@ function paginatePosts(posts, page, pageSize) {
   };
 }
 
-function savePosts(posts) {
-  window.localStorage.setItem(BOARD_STORAGE_KEY, JSON.stringify(posts));
+// 서버는 최신순 페이징만 지원하므로 검색·다른 정렬은 전체를 받아 화면에서 처리한다
+async function getAllPosts() {
+  const posts = [];
+  let page = 0;
+  let totalPages;
+
+  do {
+    const data = await request(`${BASE}?page=${page}&size=${SERVER_PAGE_SIZE_MAX}`);
+    posts.push(...data.content.map(toPost));
+    totalPages = data.totalPages;
+    page += 1;
+  } while (page < totalPages);
+
+  return posts;
 }
 
-function createBoardError(message, code) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
+export async function createBoardPost({ title, markdown }) {
+  const post = await request(BASE, {
+    method: "POST",
+    body: { title: String(title ?? "").trim(), content: String(markdown ?? "") },
+  });
+
+  return toPost(post);
 }
 
-export async function createBoardPost({
-  title,
-  markdown,
-  relatedProblemId = "",
-  type = "general",
-}) {
-  await delay();
+export async function updateBoardPost(id, { title, markdown }) {
+  const post = await request(postPath(id), {
+    method: "PATCH",
+    body: {
+      title: title === undefined ? undefined : String(title).trim(),
+      content: markdown === undefined ? undefined : String(markdown),
+    },
+  });
 
-  const trimmedTitle = String(title ?? "").trim();
-  const content = String(markdown ?? "");
-
-  if (!trimmedTitle) {
-    throw createBoardError("제목을 입력해주세요.", "EMPTY_TITLE");
-  }
-
-  if (!content.trim()) {
-    throw createBoardError("본문을 입력해주세요.", "EMPTY_CONTENT");
-  }
-
-  const user = await getCurrentUser();
-
-  if (!user) {
-    throw createBoardError("로그인 후 게시글을 작성할 수 있습니다.", "AUTH_REQUIRED");
-  }
-
-  const normalizedType = BOARD_POST_TYPES.some((postType) => postType.key === type)
-    ? type
-    : "general";
-  const post = {
-    id: `post-${Date.now()}`,
-    title: trimmedTitle,
-    markdown: content,
-    authorId: user.id,
-    authorName: user.name,
-    type: normalizedType,
-    relatedProblemId:
-      normalizedType === "problem" && relatedProblemId
-        ? Number(relatedProblemId)
-        : "",
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  };
-
-  savePosts([post, ...getStoredPosts()]);
-
-  return enrichPost(post);
+  return toPost(post);
 }
 
-export async function updateBoardPost(id, { title, markdown, relatedProblemId, type }) {
-  await delay();
-
-  const posts = getStoredPosts();
-  const targetPost = posts.find((post) => post.id === id);
-
-  if (!targetPost) {
-    throw createBoardError("게시글을 찾을 수 없습니다.", "POST_NOT_FOUND");
-  }
-
-  const nextPost = {
-    ...targetPost,
-    title: title === undefined ? targetPost.title : String(title).trim(),
-    markdown: markdown === undefined ? targetPost.markdown : String(markdown),
-    type:
-      type === undefined || !BOARD_POST_TYPES.some((postType) => postType.key === type)
-        ? targetPost.type
-        : type,
-    updatedAt: new Date().toISOString(),
-  };
-
-  nextPost.relatedProblemId =
-    nextPost.type === "problem"
-      ? relatedProblemId === undefined
-        ? targetPost.relatedProblemId
-        : relatedProblemId
-          ? Number(relatedProblemId)
-          : ""
-      : "";
-
-  if (!nextPost.title) {
-    throw createBoardError("제목을 입력해주세요.", "EMPTY_TITLE");
-  }
-
-  if (!nextPost.markdown.trim()) {
-    throw createBoardError("본문을 입력해주세요.", "EMPTY_CONTENT");
-  }
-
-  savePosts(posts.map((post) => (post.id === id ? nextPost : post)));
-
-  return enrichPost(nextPost);
-}
-
-export async function getBoardPosts() {
-  await delay(100);
-  return getStoredPosts().map(enrichPost);
+export function deleteBoardPost(id) {
+  return request(postPath(id), { method: "DELETE" });
 }
 
 export async function getBoardPostById(id) {
-  await delay(100);
+  try {
+    return toPost(await request(postPath(id)));
+  } catch (error) {
+    if (error.status === 404) {
+      return undefined;
+    }
 
-  const post = getStoredPosts().find((item) => item.id === id);
-
-  return post ? enrichPost(post) : undefined;
+    throw error;
+  }
 }
 
 export async function getBoardPostList(options = {}) {
-  await delay(100);
-
   const {
     keyword = "",
     type = "general",
@@ -293,14 +130,44 @@ export async function getBoardPostList(options = {}) {
     pageSize = DEFAULT_BOARD_PAGE_SIZE,
   } = options;
 
-  const posts = getStoredPosts().map(enrichPost);
-  const filteredPosts = posts.filter(
-    (post) =>
-      matchesType(post, type) &&
-      matchesProblem(post, problemId) &&
-      matchesKeyword(post, keyword),
-  );
-  const sortedPosts = sortPosts(filteredPosts, sortKey);
+  // 공지·문제 글과 문제별 글은 서버에 없으므로 빈 목록이다
+  if ((type && type !== "general") || problemId) {
+    return paginatePosts([], page, pageSize);
+  }
 
-  return paginatePosts(sortedPosts, page, pageSize);
+  const normalizedKeyword = normalize(keyword);
+
+  if (normalizedKeyword || (sortKey && sortKey !== "latest")) {
+    const posts = (await getAllPosts()).filter(
+      (post) =>
+        !normalizedKeyword ||
+        normalize(post.title).includes(normalizedKeyword) ||
+        normalize(post.authorName).includes(normalizedKeyword),
+    );
+
+    return paginatePosts(sortPosts(posts, sortKey), page, pageSize);
+  }
+
+  const normalizedPageSize = Math.min(
+    Number(pageSize) || DEFAULT_BOARD_PAGE_SIZE,
+    SERVER_PAGE_SIZE_MAX,
+  );
+  const requestedPage = Math.max(Number(page) || 1, 1);
+  const data = await request(
+    `${BASE}?page=${requestedPage - 1}&size=${normalizedPageSize}`,
+  );
+  const totalPages = Math.max(1, data.totalPages);
+  const startIndex = data.page * data.size + 1;
+
+  return {
+    items: data.content.map(toPost),
+    totalCount: data.totalElements,
+    currentPage: data.page + 1,
+    pageSize: data.size,
+    totalPages,
+    startIndex: data.content.length === 0 ? 0 : startIndex,
+    endIndex: data.content.length === 0 ? 0 : startIndex + data.content.length - 1,
+    hasPreviousPage: data.page > 0,
+    hasNextPage: data.page + 1 < totalPages,
+  };
 }
