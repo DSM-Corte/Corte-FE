@@ -1,7 +1,7 @@
 import Button from "../common/Button";
 import TagDropdown from "./TagDropdown";
-import TierRangeSlider from "./TierRangeSlider";
-import { statusOptions } from "./problemListConfig";
+import { isAuthenticated } from "../../api/AuthApi";
+import { difficultyTierOptions, statusOptions } from "./problemListConfig";
 
 function ProblemFilters({
   filters,
@@ -44,8 +44,17 @@ function ProblemFilters({
       </div>
 
       <section className="filter-section">
-        <h3>티어</h3>
-        <TierRangeSlider filters={filters} updateFilter={updateFilter} />
+        <label htmlFor="problem-difficulty-tier">난이도</label>
+        <select
+          id="problem-difficulty-tier"
+          className="problem-difficulty-select"
+          value={filters.difficultyTier}
+          onChange={(event) => updateFilter("difficultyTier", event.target.value)}
+        >
+          {difficultyTierOptions.map((option) => (
+            <option key={option.key} value={option.key}>{option.label}</option>
+          ))}
+        </select>
       </section>
 
       <section className="filter-section">
@@ -79,7 +88,8 @@ function ProblemFilters({
       </section>
 
       <section className="filter-section">
-        <h3>해결 상태</h3>
+        <h3>내 해결 상태</h3>
+        {!isAuthenticated() && <p>로그인하면 내 해결 상태로 필터링할 수 있어요.</p>}
         <div className="status-options">
           {statusOptions.map((statusOption) => (
             <Button
@@ -88,6 +98,8 @@ function ProblemFilters({
               type="button"
               onClick={() => updateFilter("status", statusOption.key)}
               key={statusOption.key}
+              aria-pressed={filters.status === statusOption.key}
+              disabled={statusOption.key !== "all" && !isAuthenticated()}
             >
               {statusOption.label}
             </Button>

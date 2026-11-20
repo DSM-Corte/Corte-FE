@@ -7,9 +7,8 @@ import {
 } from "../api/ProblemApi";
 import {
   createDefaultFilters,
-  getTierRankIndex,
+  difficultyTierOptions,
   problemSortKeys,
-  tierRankOptions,
 } from "../components/problems/problemListConfig";
 
 function getTagsFromSearchParams(searchParams) {
@@ -20,28 +19,14 @@ function getTagsFromSearchParams(searchParams) {
     .filter(Boolean);
 }
 
-function getTierIndexFromSearchParams(searchParams) {
-  const tier = searchParams.get("tier");
-
-  if (!tier || !tierRankOptions.includes(tier)) {
-    return null;
-  }
-
-  return getTierRankIndex(tier);
-}
-
 function createInitialFilters(searchParams) {
   const nextFilters = createDefaultFilters();
-  const tierIndex = getTierIndexFromSearchParams(searchParams);
 
+  const difficultyTier = searchParams.get("difficultyTier") ?? searchParams.get("tier")?.split(" ")[0].toUpperCase() ?? "";
+  nextFilters.difficultyTier = difficultyTierOptions.some((option) => option.key === difficultyTier) ? difficultyTier : "";
   nextFilters.keyword = searchParams.get("keyword") ?? "";
   nextFilters.problemSetId = searchParams.get("set") ?? "";
   nextFilters.selectedTags = getTagsFromSearchParams(searchParams);
-
-  if (tierIndex !== null) {
-    nextFilters.tierMinIndex = String(tierIndex);
-    nextFilters.tierMaxIndex = String(tierIndex);
-  }
 
   return nextFilters;
 }
@@ -52,7 +37,7 @@ function getSortKeyFromSearchParams(searchParams) {
 }
 
 function getSortDirectionFromSearchParams(searchParams) {
-  return searchParams.get("direction") === "desc" ? "desc" : "asc";
+  return searchParams.get("direction") === "asc" ? "asc" : "desc";
 }
 
 function createEmptyPagination() {
@@ -71,6 +56,7 @@ function createEmptyPagination() {
 
 function useProblemList() {
   const [searchParams] = useSearchParams();
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [problems, setProblems] = useState([]);
   const [pagination, setPagination] = useState(createEmptyPagination());
@@ -89,7 +75,7 @@ function useProblemList() {
     let ignore = false;
     getWorkbookCatalogWithProgress()
       .then((problems) => { if (!ignore) setCatalog(problems); })
-      .catch((error) => { if (!ignore) setError(error.message); });
+      .catch((error) => { if (!ignore) { setError(error.message); setLoading(false); } });
     return () => { ignore = true; };
   }, []);
 
@@ -98,6 +84,7 @@ function useProblemList() {
     let ignore = false;
 
     async function fetchProblems() {
+      setLoading(true);
       try {
         const data = await getProblemList({
           ...filters,
@@ -116,6 +103,8 @@ function useProblemList() {
         }
       } catch (error) {
         if (!ignore) setError(error.message);
+      } finally {
+        if (!ignore) setLoading(false);
       }
     }
 
@@ -159,7 +148,7 @@ function useProblemList() {
     setFilters(createDefaultFilters());
     setSearchInput("");
     setSortKey("id");
-    setSortDirection("asc");
+    setSortDirection("desc");
     setRandomSortSeed(0);
     setCurrentPage(1);
     setPageSize(DEFAULT_PROBLEM_PAGE_SIZE);
@@ -172,6 +161,7 @@ function useProblemList() {
 
   return {
     error,
+    loading,
     filters,
     pagination,
     problems,
