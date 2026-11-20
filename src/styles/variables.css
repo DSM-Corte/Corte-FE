@@ -11,6 +11,8 @@
   --color-primary: #0066cc;
   --color-primary-focus: #0071e3;
   --color-primary-on-dark: #2997ff;
+  /* 강조색 배경 위 글자색 */
+  --color-on-primary: #ffffff;
 
   /* Background */
   --color-canvas: #ffffff;
@@ -211,12 +213,16 @@
   --color-primary: #facc15;
   --color-primary-focus: #fde047;
   --color-primary-on-dark: #fde047;
+  /* 밝은 강조색이라 흰 글자가 잘 안 보여 어두운 글자를 쓴다 */
+  --color-on-primary: #0f172a;
 }
 
 :root[data-theme="dark"][data-accent="green"] {
   --color-primary: #4ade80;
   --color-primary-focus: #86efac;
   --color-primary-on-dark: #86efac;
+  /* 밝은 강조색이라 흰 글자가 잘 안 보여 어두운 글자를 쓴다 */
+  --color-on-primary: #0f172a;
 }
 
 :root[data-theme="dark"][data-accent="indigo"] {

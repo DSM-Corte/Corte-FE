@@ -70,7 +70,7 @@
 
 .main-hero__actions a:first-child {
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .main-hero__actions a:last-child {

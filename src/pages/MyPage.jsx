@@ -234,9 +234,9 @@ function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
 
   const statCards = [
     {
-      label: "푼 문제",
+      label: "맞힌 횟수",
       value: stats.solvedCount.toLocaleString(),
-      detail: "최근 1년 합계",
+      detail: "1년간 날짜별 합계",
     },
     {
       label: "활동한 날",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router";
 import { getAuthToken, isAuthenticated } from "./api/AuthApi";
 import { getMyTheme, updateMyTheme } from "./api/UserApi";
@@ -38,13 +38,16 @@ function getInitialAccent() {
   return "blue";
 }
 
+// 저장 요청을 하나씩 차례로 보내서 서버에 마지막으로 고른 값이 남게 한다
+let themeSaveQueue = Promise.resolve();
+
 // 로그인한 회원만 서버에 저장한다. 실패해도 화면 테마는 바꾼 채로 두고 다음 로그인 때 서버 값을 다시 불러온다
 function saveThemeToServer(change) {
   if (!isAuthenticated()) {
     return;
   }
 
-  updateMyTheme(change).catch(() => {});
+  themeSaveQueue = themeSaveQueue.then(() => updateMyTheme(change)).catch(() => {});
 }
 
 function getInitialTheme() {
@@ -89,9 +92,7 @@ function AppRoutes({ theme, accent, onToggleTheme, onChangeTheme, onChangeAccent
       return;
     }
 
-    getMyTheme()
-      .then(onLoadServerTheme)
-      .catch(() => {});
+    onLoadServerTheme();
   }, [token, onLoadServerTheme]);
 
   return (
@@ -212,14 +213,29 @@ function App() {
     window.localStorage.setItem(ACCENT_STORAGE_KEY, accent);
   }, [accent]);
 
+  // 서버 테마를 불러오는 동안 사용자가 테마를 바꿨는지 기억한다
+  const userChangedThemeRef = useRef(false);
+
   // 서버는 대문자(DARK, PINK), 화면은 소문자(dark, pink)를 쓴다
   // 서버 테마를 불러오는 effect가 매번 다시 돌지 않도록 함수를 한 번만 만든다
-  const loadServerTheme = useCallback((serverTheme) => {
-    setTheme(serverTheme.mode.toLowerCase());
-    setAccent(serverTheme.color.toLowerCase());
+  const loadServerTheme = useCallback(() => {
+    userChangedThemeRef.current = false;
+
+    getMyTheme()
+      .then((serverTheme) => {
+        // 불러오는 사이에 사용자가 바꿨으면 늦게 온 서버 값으로 덮어쓰지 않는다
+        if (userChangedThemeRef.current) {
+          return;
+        }
+
+        setTheme(serverTheme.mode.toLowerCase());
+        setAccent(serverTheme.color.toLowerCase());
+      })
+      .catch(() => {});
   }, []);
 
   function changeTheme(nextTheme) {
+    userChangedThemeRef.current = true;
     setTheme(nextTheme);
     saveThemeToServer({ mode: nextTheme.toUpperCase() });
   }
@@ -229,6 +245,7 @@ function App() {
   }
 
   function changeAccent(nextAccent) {
+    userChangedThemeRef.current = true;
     setAccent(nextAccent);
     saveThemeToServer({ color: nextAccent.toUpperCase() });
   }
