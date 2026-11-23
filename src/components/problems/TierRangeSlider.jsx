@@ -46,22 +46,25 @@ const tierMarkers = tierMarkerTiers.map((tier, markerIndex) => {
   };
 });
 
-function clampIndex(value) {
-  return Math.round(Math.min(Math.max(Number(value), 0), tierRankOptions.length - 1));
-}
+// options: 고를 수 있는 티어 목록. 리더보드는 사용자 티어(Bronze 5 ~ Master)만 넘긴다
+function TierRangeSlider({ filters, updateFilter, options = tierRankOptions }) {
+  const lastIndex = options.length - 1;
 
-function getIndexFromClientX(clientX, sliderElement) {
-  const rect = sliderElement.getBoundingClientRect();
-  const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
+  function clampIndex(value) {
+    return Math.round(Math.min(Math.max(Number(value), 0), lastIndex));
+  }
 
-  return clampIndex(percent * (tierRankOptions.length - 1));
-}
+  function getIndexFromClientX(clientX, sliderElement) {
+    const rect = sliderElement.getBoundingClientRect();
+    const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
 
-function TierRangeSlider({ filters, updateFilter }) {
+    return clampIndex(percent * lastIndex);
+  }
+
   const minValue = clampIndex(filters.tierMinIndex);
   const maxValue = clampIndex(filters.tierMaxIndex);
-  const minPercent = (minValue / (tierRankOptions.length - 1)) * 100;
-  const maxPercent = (maxValue / (tierRankOptions.length - 1)) * 100;
+  const minPercent = (minValue / lastIndex) * 100;
+  const maxPercent = (maxValue / lastIndex) * 100;
 
   function updateMin(value) {
     updateFilter("tierMinIndex", String(Math.min(clampIndex(value), maxValue)));
@@ -121,7 +124,7 @@ function TierRangeSlider({ filters, updateFilter }) {
   }
 
   function selectTierGroup(marker) {
-    const isFullRange = minValue === 0 && maxValue === tierRankOptions.length - 1;
+    const isFullRange = minValue === 0 && maxValue === lastIndex;
     const isIncluded =
       marker.startIndex >= minValue && marker.endIndex <= maxValue;
 
@@ -139,8 +142,8 @@ function TierRangeSlider({ filters, updateFilter }) {
   return (
     <div className="range-control tier-range-control">
       <div className="range-control__values">
-        <span>{tierRankOptions[minValue]}</span>
-        <span>{tierRankOptions[maxValue]}</span>
+        <span>{options[minValue]}</span>
+        <span>{options[maxValue]}</span>
       </div>
 
       <div
@@ -177,7 +180,7 @@ function TierRangeSlider({ filters, updateFilter }) {
         <input
           type="range"
           min="0"
-          max={tierRankOptions.length - 1}
+          max={lastIndex}
           step="1"
           value={minValue}
           aria-label="최소 티어"
@@ -186,7 +189,7 @@ function TierRangeSlider({ filters, updateFilter }) {
         <input
           type="range"
           min="0"
-          max={tierRankOptions.length - 1}
+          max={lastIndex}
           step="1"
           value={maxValue}
           aria-label="최대 티어"
@@ -225,7 +228,7 @@ function TierRangeSlider({ filters, updateFilter }) {
             aria-label="최소 티어"
             onChange={(event) => updateMin(event.target.value)}
           >
-            {tierRankOptions.map((tier, index) => (
+            {options.map((tier, index) => (
               <option value={index} key={tier}>
                 {tier}
               </option>
@@ -240,7 +243,7 @@ function TierRangeSlider({ filters, updateFilter }) {
             aria-label="최대 티어"
             onChange={(event) => updateMax(event.target.value)}
           >
-            {tierRankOptions.map((tier, index) => (
+            {options.map((tier, index) => (
               <option value={index} key={tier}>
                 {tier}
               </option>
