@@ -22,6 +22,12 @@ import ProblemSubmitPage from "./pages/ProblemSubmitPage";
 import SignupPage from "./pages/SignupPage";
 import SubmissionDetailPage from "./pages/SubmissionDetailPage";
 import UserProfilePage from "./pages/UserProfilePage";
+import AdminGithubPage from "./pages/admin/AdminGithubPage";
+import AdminLayout, { AdminGuard } from "./pages/admin/AdminLayout";
+import AdminProblemEditPage from "./pages/admin/AdminProblemEditPage";
+import AdminProblemListPage from "./pages/admin/AdminProblemListPage";
+import AdminWorkbookDetailPage from "./pages/admin/AdminWorkbookDetailPage";
+import AdminWorkbookListPage from "./pages/admin/AdminWorkbookListPage";
 import "./styles/dark-overrides.css";
 
 const THEME_STORAGE_KEY = "cotre_theme";
@@ -154,9 +160,9 @@ function AppRoutes({ theme, accent, onToggleTheme, onChangeTheme, onChangeAccent
         <Route
           path="/problem-sets/new"
           element={
-            <ProtectedRoute message="문제집을 만들려면 먼저 로그인해주세요.">
+            <AdminGuard>
               <ProblemSetCreatePage />
-            </ProtectedRoute>
+            </AdminGuard>
           }
         />
         <Route path="/problems" element={<ProblemListPage />} />
@@ -193,6 +199,15 @@ function AppRoutes({ theme, accent, onToggleTheme, onChangeTheme, onChangeAccent
           }
         />
         <Route path="/problems/:id" element={<ProblemDetailPage />} />
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="/admin/problems" replace />} />
+          <Route path="problems" element={<AdminProblemListPage />} />
+          <Route path="problems/new" element={<AdminProblemEditPage />} />
+          <Route path="problems/:id/edit" element={<AdminProblemEditPage />} />
+          <Route path="workbooks" element={<AdminWorkbookListPage />} />
+          <Route path="workbooks/:id" element={<AdminWorkbookDetailPage />} />
+          <Route path="github" element={<AdminGithubPage />} />
+        </Route>
       </Routes>
     </>
   );

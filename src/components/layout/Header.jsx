@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router";
-import { isAuthenticated, logout } from "../../api/AuthApi";
+import { isAdmin, isAuthenticated, logout } from "../../api/AuthApi";
 import Logo from "../common/Logo";
 
 function Header({ theme = "light", onToggleTheme }) {
@@ -64,6 +64,16 @@ function Header({ theme = "light", onToggleTheme }) {
           >
             커뮤니티
           </NavLink>
+          {isLoggedIn && isAdmin() && (
+            <NavLink
+              to="/admin"
+              className={({ isActive }) =>
+                `header__link ${isActive ? "header__link--active" : ""}`.trim()
+              }
+            >
+              관리자
+            </NavLink>
+          )}
         </nav>
 
         <div className="header__auth">
