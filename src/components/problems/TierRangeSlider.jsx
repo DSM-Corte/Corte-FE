@@ -1,5 +1,5 @@
 import TierBadge from "./TierBadge";
-import { MASTER_TIER, tierGroups, tierRankOptions } from "./problemListConfig";
+import { tierRankOptions } from "./problemListConfig";
 
 const tierMarkerLabels = {
   Bronze: "브론즈",
@@ -11,44 +11,36 @@ const tierMarkerLabels = {
   Master: "마스터",
 };
 
-const tierMarkerTiers = [
-  ...tierGroups.map((tierGroup) => `${tierGroup} 5`),
-  MASTER_TIER,
-];
+// 목록에 있는 티어 묶음(브론즈, 실버 …)마다 바로가기 표시를 만든다.
+// 묶음 범위는 목록에서 그 묶음이 처음·마지막으로 나오는 위치다. 이름표가 없는 묶음(루비, 미지정)은 만들지 않는다
+function buildTierMarkers(options) {
+  const groups = [];
 
-function getTierGroupRange(tier) {
-  if (tier === MASTER_TIER) {
-    const masterIndex = tierRankOptions.indexOf(MASTER_TIER);
+  options.forEach((tier) => {
+    const [tierGroup] = tier.split(" ");
+
+    if (tierMarkerLabels[tierGroup] && !groups.includes(tierGroup)) {
+      groups.push(tierGroup);
+    }
+  });
+
+  return groups.map((tierGroup, markerIndex) => {
+    const groupTiers = options.filter((tier) => tier.split(" ")[0] === tierGroup);
 
     return {
-      startIndex: masterIndex,
-      endIndex: masterIndex,
+      positionPercent: (markerIndex / Math.max(groups.length - 1, 1)) * 100,
+      tier: groupTiers[0],
+      label: tierMarkerLabels[tierGroup],
+      startIndex: options.indexOf(groupTiers[0]),
+      endIndex: options.indexOf(groupTiers[groupTiers.length - 1]),
     };
-  }
-
-  const [tierGroup] = tier.split(" ");
-
-  return {
-    startIndex: tierRankOptions.indexOf(`${tierGroup} 5`),
-    endIndex: tierRankOptions.indexOf(`${tierGroup} 1`),
-  };
+  });
 }
 
-const tierMarkers = tierMarkerTiers.map((tier, markerIndex) => {
-  const [tierGroup] = tier.split(" ");
-  const range = getTierGroupRange(tier);
-
-  return {
-    positionPercent: (markerIndex / (tierMarkerTiers.length - 1)) * 100,
-    tier,
-    label: tierMarkerLabels[tierGroup] ?? tierGroup,
-    ...range,
-  };
-});
-
-// options: 고를 수 있는 티어 목록. 리더보드는 사용자 티어(Bronze 5 ~ Master)만 넘긴다
+// options: 고를 수 있는 티어 목록. 리더보드는 회원 티어(Bronze 3 ~ Diamond 1)만 넘긴다
 function TierRangeSlider({ filters, updateFilter, options = tierRankOptions }) {
   const lastIndex = options.length - 1;
+  const tierMarkers = buildTierMarkers(options);
 
   function clampIndex(value) {
     return Math.round(Math.min(Math.max(Number(value), 0), lastIndex));
