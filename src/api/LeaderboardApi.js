@@ -1,22 +1,21 @@
-import { tierRankOptions } from "../components/problems/problemListConfig";
 import { ApiError, request } from "./apiClient";
 
 export const DEFAULT_LEADERBOARD_PAGE_SIZE = 20;
 export const LEADERBOARD_PAGE_SIZE_OPTIONS = [10, 20, 50];
 export const LEADERBOARD_SOLVED_RANGE = { min: 0, max: 320, step: 5 };
 
-// 사용자 티어는 Bronze 5 ~ Master 31단계다. 문제 티어 목록의 앞 31개와 순서가 같다
-export const LEADERBOARD_TIER_OPTIONS = tierRankOptions.slice(
-  0,
-  tierRankOptions.indexOf("Master") + 1,
+// 회원 티어는 Bronze 3 ~ Diamond 1 15단계다(백엔드 GET /api/users/me/tier와 같은 기준)
+const memberTierGroups = ["Bronze", "Silver", "Gold", "Platinum", "Diamond"];
+export const LEADERBOARD_TIER_OPTIONS = memberTierGroups.flatMap((group) =>
+  ["3", "2", "1"].map((grade) => `${group} ${grade}`),
 );
 
-// 화면 정렬 키 → 서버 sort 값. 티어는 XP로 정해지므로 XP로 정렬한다
+// 화면 정렬 키 → 서버 sort 값. 티어는 점수로 정해지므로 점수로 정렬한다
 const serverSortKeys = {
   rank: "RANK",
-  tier: "XP",
+  tier: "SCORE",
   solvedCount: "SOLVED",
-  xp: "XP",
+  score: "SCORE",
   successRate: "ACCURACY",
   streak: "STREAK",
 };
@@ -31,12 +30,12 @@ export function createDefaultLeaderboardFilters() {
   };
 }
 
-// "Gold 3" → "GOLD_3", "Master" → "MASTER"
+// "Gold 3" → "GOLD_3"
 function toServerTier(tier) {
   return tier.toUpperCase().replace(" ", "_");
 }
 
-// "GOLD_3" → "Gold 3", "MASTER" → "Master"
+// "GOLD_3" → "Gold 3"
 function toScreenTier(serverTier) {
   const [group, grade] = String(serverTier).split("_");
   const name = group.charAt(0) + group.slice(1).toLowerCase();
@@ -90,7 +89,7 @@ function toEntry(entry) {
     tier: toScreenTier(entry.tier),
     solvedCount: entry.solvedCount,
     submissionCount: entry.submissionCount,
-    xp: entry.xp,
+    score: entry.score,
     successRate: entry.accuracy,
     streak: entry.streak,
     isCurrentUser: entry.me,

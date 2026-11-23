@@ -151,7 +151,7 @@ function LeaderboardPage() {
           <p className="leaderboard-header__eyebrow">Leaderboard</p>
           <h1>리더보드</h1>
           <p>
-            정답 문제 수와 XP를 기준으로 유저 순위를 확인하고, 티어와 문제 수로
+            정답 문제 수와 점수를 기준으로 유저 순위를 확인하고, 티어와 문제 수로
             필요한 구간만 빠르게 좁혀볼 수 있습니다.
           </p>
         </div>
