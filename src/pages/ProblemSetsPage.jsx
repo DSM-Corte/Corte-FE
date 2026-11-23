@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
+import { isAdmin } from "../api/AuthApi";
 import { getCustomProblemSets, getWorkbookCatalogWithProgress } from "../api/ProblemSetApi";
 import TierBadge from "../components/problems/TierBadge";
 import { problemSetDefinitions } from "../data/problemSetDefinitions";
@@ -78,13 +79,15 @@ function ProblemSetsPage() {
           <p className="problem-sets-hero__eyebrow">Problem Sets</p>
           <h1>목표에 맞는 문제 묶음으로 이어서 풀어보세요</h1>
           <p>
-            현재 문제 데이터를 기준으로 추천 문제집을 구성했습니다. 직접 문제를
-            골라 내 문제집도 만들 수 있습니다.
+            현재 문제 데이터를 기준으로 추천 문제집을 구성했습니다.
           </p>
         </div>
-        <Link to="/problem-sets/new" className="problem-sets-create-link">
-          문제집 만들기
-        </Link>
+        {/* 서버가 문제집 쓰기를 관리자에게만 허용해서 버튼도 관리자에게만 보여준다 */}
+        {isAdmin() && (
+          <Link to="/problem-sets/new" className="problem-sets-create-link">
+            문제집 만들기
+          </Link>
+        )}
       </section>
 
       <section className="problem-sets-grid" aria-label="문제집 목록">
