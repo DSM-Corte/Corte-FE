@@ -2,8 +2,9 @@ const leaderboardSortOptions = [
   { key: "rank", label: "순위" },
   { key: "tier", label: "티어" },
   { key: "solvedCount", label: "문제 수" },
-  { key: "xp", label: "XP" },
+  { key: "score", label: "점수" },
   { key: "successRate", label: "정답률" },
+  { key: "streak", label: "연속 풀이" },
 ];
 
 function LeaderboardSort({ sortKey, sortDirection, onSort }) {
