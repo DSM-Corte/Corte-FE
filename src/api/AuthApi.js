@@ -156,7 +156,8 @@ export async function login({ email, password, remember = false }) {
 
   const { accessToken } = await request("/auth/login", {
     method: "POST",
-    body: { email: normalizedEmail, password },
+    // rememberMe가 true면 서버가 7일짜리 토큰을 준다(브라우저 보관 기간과 맞춘다)
+    body: { email: normalizedEmail, password, rememberMe: remember },
   });
 
   const session = {
