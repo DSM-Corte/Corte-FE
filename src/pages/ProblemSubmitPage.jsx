@@ -313,6 +313,8 @@ function ProblemSubmitPage() {
 
     try {
       const testResults = [];
+      // 실행 자체가 실패한 판정(시스템 오류, 컴파일 에러 등). 출력이 달라 틀린 것과 구분해 보여준다
+      let failedVerdict = null;
 
       // 한 사용자는 동시에 하나만 실행할 수 있어 예제를 차례로 실행한다
       for (const [index, example] of examples.entries()) {
@@ -329,18 +331,25 @@ function ProblemSubmitPage() {
 
         // 컴파일 오류처럼 실행 자체가 실패하면 나머지 예제도 같은 결과라 멈춘다
         if (job.verdict !== "FINISHED") {
+          failedVerdict = job.verdict;
           break;
         }
       }
 
       const passedCount = testResults.filter((result) => result.passed).length;
+      let verdict = "틀렸습니다";
+      if (passedCount === examples.length) {
+        verdict = "맞았습니다";
+      } else if (failedVerdict) {
+        verdict = getVerdictLabel(failedVerdict);
+      }
 
       setExampleRunResult({
         testResults,
         summary: {
           passedCount,
           totalCount: examples.length,
-          verdict: passedCount === examples.length ? "맞았습니다" : "틀렸습니다",
+          verdict,
         },
       });
       setMessage(`${passedCount}/${examples.length}개 예제를 통과했습니다.`);
