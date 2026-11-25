@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { getAuthToken } from "../api/AuthApi";
+import { isAdmin } from "../api/AuthApi";
 import { createReplyReaction, deleteReplyReaction } from "../api/CodeReviewApi";
 
 const reactions = [
@@ -8,15 +8,6 @@ const reactions = [
   { type: "SMILE", emoji: "😄", label: "웃음" },
   { type: "CELEBRATION", emoji: "🎉", label: "축하" },
 ];
-
-function isAdmin() {
-  try {
-    const payload = getAuthToken().split(".")[1].replaceAll("-", "+").replaceAll("_", "/");
-    return JSON.parse(atob(payload)).role === "ADMIN";
-  } catch {
-    return false;
-  }
-}
 
 function ReplyReactions({ requestId, reply, currentUserId, parentAuthorId, closed, onMutate }) {
   const [pending, setPending] = useState(false);

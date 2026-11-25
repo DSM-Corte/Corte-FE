@@ -211,3 +211,12 @@ export function getAuthToken() {
 export function isAuthenticated() {
   return Boolean(getAuthToken());
 }
+
+// 토큰의 role이 ADMIN이면 관리자다. 화면 표시용이고 실제 권한은 서버가 검사한다
+export function isAdmin() {
+  if (!isAuthenticated()) {
+    return false;
+  }
+
+  return decodeTokenPayload(getAuthToken())?.role === "ADMIN";
+}
