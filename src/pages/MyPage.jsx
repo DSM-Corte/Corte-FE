@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { getAuthToken, getCurrentUser } from "../api/AuthApi";
-import { getMyGrass } from "../api/UserApi";
+import { getMyGrass, getUserProfile } from "../api/UserApi";
 import MyReviewActivity from "../components/MyReviewActivity";
 import MyProblemAnalysis from "../components/MyProblemAnalysis";
 import "./MyPage.css";
@@ -219,7 +219,16 @@ function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
         setGrassError(error.message);
       }
 
-      setUser(currentUser);
+      // 로그인 응답에는 닉네임이 없어 서버 프로필에서 받아온다. 실패하면 이메일 앞부분을 그대로 쓴다
+      let name = currentUser.name;
+      try {
+        const profile = await getUserProfile(currentUser.id);
+        name = profile.nickname;
+      } catch {
+        // 이름 표시만 못 바꾸는 것이라 화면은 그대로 보여준다
+      }
+
+      setUser({ ...currentUser, name });
       setIsLoading(false);
     }
 
