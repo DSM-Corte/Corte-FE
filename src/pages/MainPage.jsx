@@ -17,45 +17,33 @@ function getPostPreview(markdown) {
 }
 
 function MainPage() {
-  const [recentProblems, setRecentProblems] = useState([]);
-  const [recentPosts, setRecentPosts] = useState([]);
-  const [notices, setNotices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // 영역마다 { loading } → { items } 또는 { error }
+  const [problemState, setProblemState] = useState({ loading: true });
+  const [postState, setPostState] = useState({ loading: true });
+  const [noticeState, setNoticeState] = useState({ loading: true });
+  const recentProblems = problemState.items ?? [];
+  const recentPosts = postState.items ?? [];
+  const notices = noticeState.items ?? [];
 
   useEffect(() => {
     let ignore = false;
 
-    async function fetchHomeData() {
-      const [problems, posts, noticePosts] = await Promise.all([
-        // 서버에는 푼 사람 수가 없어 최근에 등록된 문제(ID 큰 순)를 보여준다
-        getProblemList({
-          sortKey: "id",
-          sortDirection: "desc",
-          pageSize: 5,
-        }),
-        getBoardPostList({
-          type: "",
-          sortKey: "latest",
-          pageSize: 5,
-        }),
-        getBoardPostList({
-          type: "notice",
-          sortKey: "latest",
-          pageSize: 3,
-        }),
-      ]);
-
-      if (ignore) {
-        return;
-      }
-
-      setRecentProblems(problems.items);
-      setRecentPosts(posts.items);
-      setNotices(noticePosts.items);
-      setIsLoading(false);
+    // 한 영역이 실패해도(예: 비로그인 게시글 401) 다른 영역은 보여주도록 따로 불러온다
+    function load(promise, setState) {
+      promise.then(
+        (result) => {
+          if (!ignore) setState({ items: result.items });
+        },
+        () => {
+          if (!ignore) setState({ error: true });
+        },
+      );
     }
 
-    fetchHomeData();
+    // 서버에는 푼 사람 수가 없어 최근에 등록된 문제(ID 큰 순)를 보여준다
+    load(getProblemList({ sortKey: "id", sortDirection: "desc", pageSize: 5 }), setProblemState);
+    load(getBoardPostList({ type: "", sortKey: "latest", pageSize: 5 }), setPostState);
+    load(getBoardPostList({ type: "notice", sortKey: "latest", pageSize: 3 }), setNoticeState);
 
     return () => {
       ignore = true;
@@ -119,8 +107,12 @@ function MainPage() {
           </div>
 
           <div className="main-problem-list">
-            {isLoading ? (
+            {problemState.loading ? (
               <p className="main-empty">문제를 불러오는 중입니다.</p>
+            ) : problemState.error ? (
+              <p className="main-empty" role="alert">문제를 불러오지 못했습니다.</p>
+            ) : recentProblems.length === 0 ? (
+              <p className="main-empty">등록된 문제가 없습니다.</p>
             ) : (
               recentProblems.map((problem) => (
                 <Link
@@ -148,8 +140,10 @@ function MainPage() {
           </div>
 
           <div className="main-post-list">
-            {isLoading ? (
+            {noticeState.loading ? (
               <p className="main-empty">공지를 불러오는 중입니다.</p>
+            ) : noticeState.error ? (
+              <p className="main-empty" role="alert">공지를 불러오지 못했습니다.</p>
             ) : notices.length === 0 ? (
               <p className="main-empty">등록된 공지가 없습니다.</p>
             ) : (
@@ -173,8 +167,12 @@ function MainPage() {
           </div>
 
           <div className="main-post-list">
-            {isLoading ? (
+            {postState.loading ? (
               <p className="main-empty">게시글을 불러오는 중입니다.</p>
+            ) : postState.error ? (
+              <p className="main-empty" role="alert">게시글을 불러오지 못했습니다.</p>
+            ) : recentPosts.length === 0 ? (
+              <p className="main-empty">등록된 게시글이 없습니다.</p>
             ) : (
               recentPosts.map((post) => (
                 <Link to={`/community/posts/${post.id}`} className="main-post" key={post.id}>
