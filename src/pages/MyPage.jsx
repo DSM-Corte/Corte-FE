@@ -223,7 +223,7 @@ function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
       let name = currentUser.name;
       try {
         const profile = await getUserProfile(currentUser.id);
-        name = profile.nickname;
+        name = profile.nickname || currentUser.name;
       } catch {
         // 이름 표시만 못 바꾸는 것이라 화면은 그대로 보여준다
       }
