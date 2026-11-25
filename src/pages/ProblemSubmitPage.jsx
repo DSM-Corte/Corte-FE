@@ -352,7 +352,11 @@ function ProblemSubmitPage() {
           verdict,
         },
       });
-      setMessage(`${passedCount}/${examples.length}개 예제를 통과했습니다.`);
+      if (failedVerdict) {
+        setMessage(`${verdict}: 예제를 끝까지 실행하지 못했습니다.`);
+      } else {
+        setMessage(`${passedCount}/${examples.length}개 예제를 통과했습니다.`);
+      }
     } catch (error) {
       if (!handleActionError(error)) {
         setExampleRunResult(null);
