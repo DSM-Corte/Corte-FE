@@ -1,6 +1,5 @@
-import { getProblemById } from "./ProblemApi";
-import { getCurrentUserId } from "./AuthApi";
-import { getStoredSubmissions } from "./submissionStorage";
+// 커뮤니티 글의 코드 블록을 브라우저 안에서 실행한다(JavaScript는 Web Worker, Python은 Pyodide)
+// 문제 풀이 실행·제출은 서버(JudgeApi.js)를 쓴다
 
 const RUN_TIMEOUT_MS = 2500;
 const PYTHON_RUN_TIMEOUT_MS = 20000;
@@ -8,8 +7,6 @@ const PYODIDE_CDN_URL = "https://cdn.jsdelivr.net/pyodide/v0.29.4/full/pyodide.m
 
 let pythonWorker = null;
 let pythonRequestId = 0;
-
-export const ACCEPTED_RESULT = "맞았습니다";
 
 function delay(ms = 150) {
   return new Promise((resolve) => {
@@ -283,86 +280,6 @@ function runLanguageCode({ language, code, testCases }) {
   throw createSubmissionError("지원하지 않는 언어입니다.", "UNSUPPORTED_LANGUAGE");
 }
 
-function getExampleTestCases(problem) {
-  return problem.detail.examples.map((example) => ({
-    title: example.title,
-    input: example.input,
-    output: example.output,
-  }));
-}
-
-function createRunSummary(testResults) {
-  const passedCount = testResults.filter((result) => result.passed).length;
-
-  return {
-    passedCount,
-    totalCount: testResults.length,
-    verdict: passedCount === testResults.length ? ACCEPTED_RESULT : "틀렸습니다",
-    runtimeMs: testResults.reduce((sum, result) => sum + result.runtimeMs, 0),
-  };
-}
-
-function estimateMemoryKb({ code, language, testResults }) {
-  const languageBaseMemory = language === "python" ? 28672 : 12288;
-  const codeMemory = Math.ceil(String(code ?? "").length / 16);
-  const testMemory = testResults.length * 384;
-
-  return languageBaseMemory + codeMemory + testMemory;
-}
-
-export async function runCode({ problemId, language, code }) {
-  await delay();
-
-  const problem = await getProblemById(problemId);
-
-  if (!problem) {
-    throw createSubmissionError("문제를 찾을 수 없습니다.", "PROBLEM_NOT_FOUND");
-  }
-
-  const testResults = await runLanguageCode({
-    language,
-    code,
-    testCases: getExampleTestCases(problem),
-  });
-
-  return {
-    problem,
-    testResults,
-    summary: {
-      ...createRunSummary(testResults),
-      memoryKb: estimateMemoryKb({ code, language, testResults }),
-    },
-  };
-}
-
-export async function runTerminalCode({ problemId, language, code, input }) {
-  await delay();
-
-  const problem = await getProblemById(problemId);
-
-  if (!problem) {
-    throw createSubmissionError("문제를 찾을 수 없습니다.", "PROBLEM_NOT_FOUND");
-  }
-
-  const [result] = await runLanguageCode({
-    language,
-    code,
-    testCases: [
-      {
-        title: "터미널 입력",
-        input,
-      },
-    ],
-  });
-
-  return {
-    problem,
-    input: result.input,
-    output: result.output,
-    runtimeMs: result.runtimeMs,
-  };
-}
-
 export async function runSnippetCode({ language, code, input = "" }) {
   await delay();
 
@@ -382,21 +299,4 @@ export async function runSnippetCode({ language, code, input = "" }) {
     output: result.output,
     runtimeMs: result.runtimeMs,
   };
-}
-
-export async function getSubmissionList({ problemId } = {}) {
-  await delay(100);
-
-  const userId = getCurrentUserId();
-  const submissions = getStoredSubmissions().filter(
-    (submission) => submission.userId === userId,
-  );
-
-  if (!problemId) {
-    return submissions;
-  }
-
-  return submissions.filter(
-    (submission) => submission.problemId === Number(problemId),
-  );
 }

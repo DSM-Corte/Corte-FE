@@ -17,7 +17,7 @@ function getPostPreview(markdown) {
 }
 
 function MainPage() {
-  const [popularProblems, setPopularProblems] = useState([]);
+  const [recentProblems, setRecentProblems] = useState([]);
   const [recentPosts, setRecentPosts] = useState([]);
   const [notices, setNotices] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -27,8 +27,9 @@ function MainPage() {
 
     async function fetchHomeData() {
       const [problems, posts, noticePosts] = await Promise.all([
+        // 서버에는 푼 사람 수가 없어 최근에 등록된 문제(ID 큰 순)를 보여준다
         getProblemList({
-          sortKey: "solvedCount",
+          sortKey: "id",
           sortDirection: "desc",
           pageSize: 5,
         }),
@@ -48,7 +49,7 @@ function MainPage() {
         return;
       }
 
-      setPopularProblems(problems.items);
+      setRecentProblems(problems.items);
       setRecentPosts(posts.items);
       setNotices(noticePosts.items);
       setIsLoading(false);
@@ -79,7 +80,7 @@ function MainPage() {
 
         <aside className="main-hero__panel" aria-label="오늘의 요약">
           <span>Today</span>
-          <strong>{popularProblems.length.toLocaleString()}</strong>
+          <strong>{recentProblems.length.toLocaleString()}</strong>
           <p>추천 문제와 최근 활동을 바로 이어서 확인하세요.</p>
         </aside>
       </section>
@@ -111,17 +112,17 @@ function MainPage() {
         <article className="main-section main-section--wide">
           <div className="main-section__head">
             <div>
-              <p>Popular</p>
-              <h2>인기 있는 문제</h2>
+              <p>Recent</p>
+              <h2>최근 문제</h2>
             </div>
-            <Link to="/problems?sort=solvedCount">전체 보기</Link>
+            <Link to="/problems">전체 보기</Link>
           </div>
 
           <div className="main-problem-list">
             {isLoading ? (
               <p className="main-empty">문제를 불러오는 중입니다.</p>
             ) : (
-              popularProblems.map((problem) => (
+              recentProblems.map((problem) => (
                 <Link
                   to={`/problems/${problem.id}`}
                   className="main-problem-row"
@@ -130,7 +131,7 @@ function MainPage() {
                   <span className="main-problem-row__id">#{problem.id}</span>
                   <strong>{problem.title}</strong>
                   <TierBadge tier={problem.tier} showName />
-                  <span>{problem.solvedCount.toLocaleString()}명 해결</span>
+                  <span>{problem.category}</span>
                 </Link>
               ))
             )}

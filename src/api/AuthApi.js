@@ -1,42 +1,8 @@
 import { request } from "./apiClient";
 
-// 아직 백엔드가 없는 기능(리더보드, 코드 리뷰 등)이 보여주는 다른 사용자 목록이다
-const USER_STORAGE_KEY = "cotre_mock_users";
 const SESSION_STORAGE_KEY = "cotre_session";
 const ACCESS_TOKEN_STORAGE_KEY = "cotre_access_token";
 const ACCESS_TOKEN_COOKIE_KEY = "cotre_access_token";
-
-const seedUsers = [
-  {
-    id: "user-test",
-    name: "cotrunner",
-    email: "test@cotre.dev",
-    password: "test1234",
-    createdAt: "2024-01-01T00:00:00.000Z",
-  },
-];
-
-function delay(ms = 250) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
-  });
-}
-
-function getStoredUsers() {
-  const rawUsers = window.localStorage.getItem(USER_STORAGE_KEY);
-
-  if (!rawUsers) {
-    window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(seedUsers));
-    return seedUsers;
-  }
-
-  try {
-    return JSON.parse(rawUsers);
-  } catch {
-    window.localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(seedUsers));
-    return seedUsers;
-  }
-}
 
 function decodeTokenPayload(token) {
   try {
@@ -93,12 +59,6 @@ function clearAccessToken() {
   window.localStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   window.sessionStorage.removeItem(ACCESS_TOKEN_STORAGE_KEY);
   removeCookie(ACCESS_TOKEN_COOKIE_KEY);
-}
-
-function sanitizeUser(user) {
-  const { password, ...safeUser } = user;
-  void password;
-  return safeUser;
 }
 
 function normalize(value) {
@@ -228,29 +188,6 @@ export async function getCurrentUser() {
   }
 
   return toUser(session);
-}
-
-export async function getUserById(id) {
-  await delay(100);
-
-  if (id === "ai-cotre") {
-    return {
-      id: "ai-cotre",
-      name: "COTRE Review",
-      email: "ai-review@cotre.local",
-      createdAt: "2026-01-01T00:00:00.000Z",
-    };
-  }
-
-  const session = getSession();
-
-  if (session && session.userId === id) {
-    return toUser(session);
-  }
-
-  const user = getStoredUsers().find((storedUser) => storedUser.id === id);
-
-  return user ? sanitizeUser(user) : undefined;
 }
 
 export function getCurrentUserId() {
