@@ -1,6 +1,7 @@
 import { getRecommendedProblemSet } from "../data/problemSetDefinitions.js";
 import { getTierRankIndex, tierRankOptions } from "../components/problems/problemListConfig.js";
-import { getCustomProblemSet, getWorkbookCatalogWithProgress } from "./ProblemSetApi.js";
+import { request } from "./apiClient.js";
+import { getCustomProblemSet, getWorkbookCatalogWithProgress, toWorkbookProblem } from "./ProblemSetApi.js";
 
 const sortAccessors = {
   id: (problem) => problem.id,
@@ -53,7 +54,7 @@ function matchesStatus(problem, status) {
   }
 
   if (status === "unsolved") {
-    return !problem.attempted && !problem.solved;
+    return !problem.solved;
   }
 
   return true;
@@ -126,12 +127,13 @@ function paginateProblems(problems, page, pageSize) {
   };
 }
 
-// 서버 문제 목록(로그인했으면 내 제출 기록으로 푼 문제 표시까지)을 받아 화면에서 거르고 정렬해 한 페이지를 준다
-// serverCatalog를 넘기면 다시 받지 않고 그 목록을 쓴다
+// 난이도·해결 상태는 서버에서 거르고, 추가 검색·정렬은 받은 목록에 적용한다.
+// serverCatalog는 문제별 풀이 진행 상태를 합칠 때 사용한다.
 export async function getProblemList(options = {}) {
   const {
     serverCatalog,
     keyword = "",
+    difficultyTier = "",
     tierMinIndex = "0",
     tierMaxIndex = String(tierRankOptions.length - 1),
     selectedTags = [],
@@ -144,7 +146,43 @@ export async function getProblemList(options = {}) {
     pageSize = DEFAULT_PROBLEM_PAGE_SIZE,
   } = options;
 
-  const problems = serverCatalog ?? await getWorkbookCatalogWithProgress();
+  let problems = serverCatalog ?? await getWorkbookCatalogWithProgress();
+
+  const query = new URLSearchParams({ size: String(pageSize), page: String(page - 1) });
+  if (difficultyTier) query.set("difficultyTier", difficultyTier);
+  query.set("solveStatus", { solved: "SOLVED", unsolved: "UNSOLVED" }[status] ?? "ALL");
+  const simplePage = !keyword.trim() && selectedTags.length === 0 && !problemSetId
+    && sortKey === "id" && sortDirection === "desc";
+  const progress = new Map(problems.map((problem) => [Number(problem.id), problem]));
+  const withProgress = (problem) => ({ ...toWorkbookProblem(problem),
+    solved: status === "solved" || (status !== "unsolved" && Boolean(progress.get(Number(problem.id))?.solved)),
+    attempted: Boolean(progress.get(Number(problem.id))?.attempted),
+  });
+  if (simplePage) {
+    let result = await request(`/api/problems?${query}`);
+    if (result.totalPages > 0 && result.page >= result.totalPages) {
+      query.set("page", String(result.totalPages - 1));
+      result = await request(`/api/problems?${query}`);
+    }
+    const currentPage = result.page + 1;
+    return {
+      items: result.content.map(withProgress), totalCount: result.totalElements,
+      currentPage, pageSize: result.size, totalPages: Math.max(1, result.totalPages),
+      startIndex: result.totalElements ? result.page * result.size + 1 : 0,
+      endIndex: Math.min(currentPage * result.size, result.totalElements),
+      hasPreviousPage: result.page > 0, hasNextPage: currentPage < result.totalPages,
+    };
+  }
+  // 기존 복수 태그·키워드·정렬은 서버에서 필터링한 목록에 적용한다.
+  problems = [];
+  query.set("size", "100");
+  let index = 0;
+  let result;
+  do {
+    query.set("page", String(index++));
+    result = await request(`/api/problems?${query}`);
+    problems.push(...result.content.map(withProgress));
+  } while (index < result.totalPages);
   const problemSetFilter = await getProblemSetFilter(problemSetId, problems);
 
   const filteredProblems = problems.filter((problem) => {
