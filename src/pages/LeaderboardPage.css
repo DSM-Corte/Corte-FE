@@ -136,7 +136,7 @@
   padding: 0 var(--space-xs);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
   font-size: var(--font-size-fine);
   font-weight: var(--font-weight-bold);
 }

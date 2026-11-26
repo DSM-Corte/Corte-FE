@@ -848,13 +848,13 @@
 .problem-pagination__button.is-active {
   border-color: var(--color-primary);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .problem-pagination__button.is-active:hover:not(:disabled) {
   border-color: var(--color-primary-focus);
   background: var(--color-primary-focus);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .problem-pagination__button:active:not(:disabled) {

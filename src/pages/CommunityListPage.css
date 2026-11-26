@@ -54,7 +54,7 @@
   padding: 0 var(--space-lg);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
   font-size: var(--font-size-caption);
   font-weight: var(--font-weight-bold);
   transition:
@@ -240,7 +240,7 @@
   padding: 0 var(--space-sm);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
   font-size: var(--font-size-fine);
   font-weight: var(--font-weight-bold);
 }
@@ -454,7 +454,7 @@
 
 .community-pagination__controls button.is-active {
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
 }
 
 .community-pagination__controls button:disabled {

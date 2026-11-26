@@ -246,7 +246,7 @@
   padding: 0 var(--space-md);
   border-radius: var(--radius-pill);
   background: var(--color-primary);
-  color: var(--color-body-on-dark);
+  color: var(--color-on-primary);
   font-size: var(--font-size-caption);
 }
 
