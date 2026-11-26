@@ -1,4 +1,7 @@
-import { LEADERBOARD_SOLVED_RANGE } from "../../api/LeaderboardApi";
+import {
+  LEADERBOARD_SOLVED_RANGE,
+  LEADERBOARD_TIER_OPTIONS,
+} from "../../api/LeaderboardApi";
 import Button from "../common/Button";
 import RangeSlider from "../problems/RangeSlider";
 import TierRangeSlider from "../problems/TierRangeSlider";
@@ -34,7 +37,11 @@ function LeaderboardFilters({ filters, onCollapse, updateFilter, resetFilters })
 
       <section className="filter-section">
         <h3>티어</h3>
-        <TierRangeSlider filters={filters} updateFilter={updateFilter} />
+        <TierRangeSlider
+          filters={filters}
+          updateFilter={updateFilter}
+          options={LEADERBOARD_TIER_OPTIONS}
+        />
       </section>
 
       <section className="filter-section filter-section--average">

@@ -33,26 +33,41 @@ function LeaderboardPage() {
   });
   const [isFilterOpen, setIsFilterOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [reloadCount, setReloadCount] = useState(0);
 
   useEffect(() => {
     let ignore = false;
 
     async function fetchLeaderboard() {
       setIsLoading(true);
-      const nextPagination = await getLeaderboard({
-        ...filters,
-        sortKey,
-        sortDirection,
-        page,
-        pageSize,
-      });
+      setErrorMessage("");
 
-      if (ignore) {
-        return;
+      try {
+        const nextPagination = await getLeaderboard({
+          ...filters,
+          sortKey,
+          sortDirection,
+          page,
+          pageSize,
+        });
+
+        if (ignore) {
+          return;
+        }
+
+        setPagination(nextPagination);
+      } catch (error) {
+        if (ignore) {
+          return;
+        }
+
+        setErrorMessage(error.message || "리더보드를 불러오지 못했습니다.");
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
-
-      setPagination(nextPagination);
-      setIsLoading(false);
     }
 
     fetchLeaderboard();
@@ -60,7 +75,7 @@ function LeaderboardPage() {
     return () => {
       ignore = true;
     };
-  }, [filters, page, pageSize, sortDirection, sortKey]);
+  }, [filters, page, pageSize, sortDirection, sortKey, reloadCount]);
 
   function updateFilter(key, value) {
     setFilters((currentFilters) => ({
@@ -136,7 +151,7 @@ function LeaderboardPage() {
           <p className="leaderboard-header__eyebrow">Leaderboard</p>
           <h1>리더보드</h1>
           <p>
-            정답 문제 수와 XP를 기준으로 유저 순위를 확인하고, 티어와 문제 수로
+            정답 문제 수와 점수를 기준으로 유저 순위를 확인하고, 티어와 문제 수로
             필요한 구간만 빠르게 좁혀볼 수 있습니다.
           </p>
         </div>
@@ -148,7 +163,7 @@ function LeaderboardPage() {
             value={searchInput}
             onChange={(event) => setSearchInput(event.target.value)}
             aria-label="리더보드 검색"
-            placeholder="닉네임 또는 티어를 검색하세요"
+            placeholder="닉네임을 검색하세요"
           />
           <Button variant="primary" size="medium" type="submit">
             검색
@@ -167,12 +182,28 @@ function LeaderboardPage() {
           sortDirection={sortDirection}
           onSort={updateSort}
         />
-        <LeaderboardTable entries={pagination.items} />
-        <LeaderboardPagination
-          pagination={pagination}
-          onPageChange={setPage}
-          onPageSizeChange={updatePageSize}
-        />
+        {errorMessage ? (
+          <div className="leaderboard-error" role="alert">
+            <p>{errorMessage}</p>
+            <Button
+              variant="ghost"
+              size="small"
+              type="button"
+              onClick={() => setReloadCount((count) => count + 1)}
+            >
+              다시 시도
+            </Button>
+          </div>
+        ) : (
+          <>
+            <LeaderboardTable entries={pagination.items} />
+            <LeaderboardPagination
+              pagination={pagination}
+              onPageChange={setPage}
+              onPageSizeChange={updatePageSize}
+            />
+          </>
+        )}
       </section>
     </main>
   );

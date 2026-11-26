@@ -17,44 +17,33 @@ function getPostPreview(markdown) {
 }
 
 function MainPage() {
-  const [popularProblems, setPopularProblems] = useState([]);
-  const [recentPosts, setRecentPosts] = useState([]);
-  const [notices, setNotices] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // 영역마다 { loading } → { items } 또는 { error }
+  const [problemState, setProblemState] = useState({ loading: true });
+  const [postState, setPostState] = useState({ loading: true });
+  const [noticeState, setNoticeState] = useState({ loading: true });
+  const recentProblems = problemState.items ?? [];
+  const recentPosts = postState.items ?? [];
+  const notices = noticeState.items ?? [];
 
   useEffect(() => {
     let ignore = false;
 
-    async function fetchHomeData() {
-      const [problems, posts, noticePosts] = await Promise.all([
-        getProblemList({
-          sortKey: "solvedCount",
-          sortDirection: "desc",
-          pageSize: 5,
-        }),
-        getBoardPostList({
-          type: "",
-          sortKey: "latest",
-          pageSize: 5,
-        }),
-        getBoardPostList({
-          type: "notice",
-          sortKey: "latest",
-          pageSize: 3,
-        }),
-      ]);
-
-      if (ignore) {
-        return;
-      }
-
-      setPopularProblems(problems.items);
-      setRecentPosts(posts.items);
-      setNotices(noticePosts.items);
-      setIsLoading(false);
+    // 한 영역이 실패해도(예: 비로그인 게시글 401) 다른 영역은 보여주도록 따로 불러온다
+    function load(promise, setState) {
+      promise.then(
+        (result) => {
+          if (!ignore) setState({ items: result.items });
+        },
+        () => {
+          if (!ignore) setState({ error: true });
+        },
+      );
     }
 
-    fetchHomeData();
+    // 서버에는 푼 사람 수가 없어 최근에 등록된 문제(ID 큰 순)를 보여준다
+    load(getProblemList({ sortKey: "id", sortDirection: "desc", pageSize: 5 }), setProblemState);
+    load(getBoardPostList({ type: "", sortKey: "latest", pageSize: 5 }), setPostState);
+    load(getBoardPostList({ type: "notice", sortKey: "latest", pageSize: 3 }), setNoticeState);
 
     return () => {
       ignore = true;
@@ -79,7 +68,7 @@ function MainPage() {
 
         <aside className="main-hero__panel" aria-label="오늘의 요약">
           <span>Today</span>
-          <strong>{popularProblems.length.toLocaleString()}</strong>
+          <strong>{recentProblems.length.toLocaleString()}</strong>
           <p>추천 문제와 최근 활동을 바로 이어서 확인하세요.</p>
         </aside>
       </section>
@@ -111,17 +100,21 @@ function MainPage() {
         <article className="main-section main-section--wide">
           <div className="main-section__head">
             <div>
-              <p>Popular</p>
-              <h2>인기 있는 문제</h2>
+              <p>Recent</p>
+              <h2>최근 문제</h2>
             </div>
-            <Link to="/problems?sort=solvedCount">전체 보기</Link>
+            <Link to="/problems">전체 보기</Link>
           </div>
 
           <div className="main-problem-list">
-            {isLoading ? (
+            {problemState.loading ? (
               <p className="main-empty">문제를 불러오는 중입니다.</p>
+            ) : problemState.error ? (
+              <p className="main-empty" role="alert">문제를 불러오지 못했습니다.</p>
+            ) : recentProblems.length === 0 ? (
+              <p className="main-empty">등록된 문제가 없습니다.</p>
             ) : (
-              popularProblems.map((problem) => (
+              recentProblems.map((problem) => (
                 <Link
                   to={`/problems/${problem.id}`}
                   className="main-problem-row"
@@ -130,7 +123,7 @@ function MainPage() {
                   <span className="main-problem-row__id">#{problem.id}</span>
                   <strong>{problem.title}</strong>
                   <TierBadge tier={problem.tier} showName />
-                  <span>{problem.solvedCount.toLocaleString()}명 해결</span>
+                  <span>{problem.category}</span>
                 </Link>
               ))
             )}
@@ -147,8 +140,10 @@ function MainPage() {
           </div>
 
           <div className="main-post-list">
-            {isLoading ? (
+            {noticeState.loading ? (
               <p className="main-empty">공지를 불러오는 중입니다.</p>
+            ) : noticeState.error ? (
+              <p className="main-empty" role="alert">공지를 불러오지 못했습니다.</p>
             ) : notices.length === 0 ? (
               <p className="main-empty">등록된 공지가 없습니다.</p>
             ) : (
@@ -172,8 +167,12 @@ function MainPage() {
           </div>
 
           <div className="main-post-list">
-            {isLoading ? (
+            {postState.loading ? (
               <p className="main-empty">게시글을 불러오는 중입니다.</p>
+            ) : postState.error ? (
+              <p className="main-empty" role="alert">게시글을 불러오지 못했습니다.</p>
+            ) : recentPosts.length === 0 ? (
+              <p className="main-empty">등록된 게시글이 없습니다.</p>
             ) : (
               recentPosts.map((post) => (
                 <Link to={`/community/posts/${post.id}`} className="main-post" key={post.id}>

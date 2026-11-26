@@ -51,6 +51,7 @@ function CommunityListPage() {
     hasNextPage: false,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   const visiblePages = useMemo(
     () => getVisiblePages(pagination.currentPage, pagination.totalPages),
@@ -67,19 +68,29 @@ function CommunityListPage() {
 
     async function fetchPosts() {
       setIsLoading(true);
+      setHasError(false);
 
-      const nextPagination = await getBoardPostList({
-        keyword,
-        type: effectivePostType,
-        problemId: linkedProblemId,
-        sortKey,
-        page: pagination.currentPage,
-        pageSize: pagination.pageSize,
-      });
+      try {
+        const nextPagination = await getBoardPostList({
+          keyword,
+          type: effectivePostType,
+          problemId: linkedProblemId,
+          sortKey,
+          page: pagination.currentPage,
+          pageSize: pagination.pageSize,
+        });
 
-      if (!ignore) {
-        setPagination(nextPagination);
-        setIsLoading(false);
+        if (!ignore) {
+          setPagination(nextPagination);
+        }
+      } catch {
+        if (!ignore) {
+          setHasError(true);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -232,6 +243,10 @@ function CommunityListPage() {
 
           {isLoading ? (
             <div className="community-table__empty">게시글을 불러오는 중입니다.</div>
+          ) : hasError ? (
+            <div className="community-table__empty">
+              게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.
+            </div>
           ) : pagination.items.length === 0 ? (
             <div className="community-table__empty">표시할 게시글이 없습니다.</div>
           ) : (

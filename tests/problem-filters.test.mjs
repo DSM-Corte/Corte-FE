@@ -11,7 +11,7 @@ globalThis.document = { cookie: '' };
 after(async () => { globalThis.fetch = originalFetch; delete globalThis.window; delete globalThis.document; await server.close(); });
 
 const problem = (id, difficulty = 'BRONZE_5') => ({ id, title: `문제 ${id}`, difficulty, tags: ['배열'] });
-const options = (extra = {}) => ({ ...createDefaultFilters(), useServerCatalog: true, serverCatalog: [], sortKey: 'id', sortDirection: 'desc', page: 1, pageSize: 5, ...extra });
+const options = (extra = {}) => ({ ...createDefaultFilters(), serverCatalog: [], sortKey: 'id', sortDirection: 'desc', page: 1, pageSize: 5, ...extra });
 const reply = (content, totalElements = content.length, page = 0, size = 5) => new Response(JSON.stringify({ content, totalElements, page, size, totalPages: Math.ceil(totalElements / size) }), { status: 200 });
 
 test('등급·해결 상태를 서버 쿼리에 함께 전달하고 서버 총 개수로 페이징한다', async () => {

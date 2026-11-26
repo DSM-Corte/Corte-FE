@@ -13,7 +13,7 @@ function LeaderboardTable({ entries }) {
         <span role="columnheader">유저</span>
         <span role="columnheader">티어</span>
         <span role="columnheader">정답 문제 수</span>
-        <span role="columnheader">XP</span>
+        <span role="columnheader">점수</span>
         <span role="columnheader">정답률</span>
         <span role="columnheader">연속 풀이</span>
       </div>
@@ -38,7 +38,7 @@ function LeaderboardTable({ entries }) {
             <TierBadge tier={entry.tier} showName />
           </span>
           <span role="cell">{entry.solvedCount.toLocaleString()}문제</span>
-          <span role="cell">{entry.xp.toLocaleString()} XP</span>
+          <span role="cell">{entry.score.toLocaleString()}점</span>
           <span role="cell">{formatPercent(entry.successRate)}</span>
           <span role="cell">{entry.streak.toLocaleString()}일</span>
         </Link>

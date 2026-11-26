@@ -1,18 +1,12 @@
-import { mockProblems } from "../data/mockProblem.js";
 import { getRecommendedProblemSet } from "../data/problemSetDefinitions.js";
-import { getTierRankIndex } from "../components/problems/problemListConfig.js";
+import { getTierRankIndex, tierRankOptions } from "../components/problems/problemListConfig.js";
 import { request } from "./apiClient.js";
-import { toWorkbookProblem } from "./ProblemSetApi.js";
-import { getCurrentUserId } from "./AuthApi.js";
-import { getCustomProblemSet, getWorkbookCatalogWithProgress, getWorkbookProblemCatalog } from "./ProblemSetApi.js";
-import { getUserSubmissions } from "./submissionStorage.js";
+import { getCustomProblemSet, getWorkbookCatalogWithProgress, toWorkbookProblem } from "./ProblemSetApi.js";
 
 const sortAccessors = {
   id: (problem) => problem.id,
   tier: (problem) => getTierRankIndex(problem.tier),
   title: (problem) => problem.title,
-  solvedCount: (problem) => problem.solvedCount,
-  averageTries: (problem) => problem.averageTries,
 };
 
 export const DEFAULT_PROBLEM_PAGE_SIZE = 20;
@@ -66,23 +60,6 @@ function matchesStatus(problem, status) {
   return true;
 }
 
-function matchesRange(value, min, max) {
-  const parsedMin = Number(min);
-  const parsedMax = Number(max);
-  const hasMin = min !== "" && Number.isFinite(parsedMin);
-  const hasMax = max !== "" && Number.isFinite(parsedMax);
-
-  if (hasMin && value < parsedMin) {
-    return false;
-  }
-
-  if (hasMax && value > parsedMax) {
-    return false;
-  }
-
-  return true;
-}
-
 async function getProblemSetFilter(problemSetId, problems) {
   if (!problemSetId) {
     return null;
@@ -127,41 +104,6 @@ function sortProblems(problems, sortKey, sortDirection) {
   });
 }
 
-function getUserProblemStats() {
-  const userId = getCurrentUserId();
-  const submissions = getUserSubmissions(userId);
-  const attemptedProblemIds = new Set();
-  const solvedProblemIds = new Set();
-
-  submissions.forEach((submission) => {
-    attemptedProblemIds.add(submission.problemId);
-
-    if (submission.result === "맞았습니다") {
-      solvedProblemIds.add(submission.problemId);
-    }
-  });
-
-  return {
-    attemptedProblemIds,
-    solvedProblemIds,
-  };
-}
-
-function applyUserProblemStatus(problem, userProblemStats) {
-  return {
-    ...problem,
-    attempted: userProblemStats.attemptedProblemIds.has(problem.id),
-    solved: userProblemStats.solvedProblemIds.has(problem.id),
-  };
-}
-
-function getUserProblems() {
-  const userProblemStats = getUserProblemStats();
-  return mockProblems.map((problem) =>
-    applyUserProblemStatus(problem, userProblemStats),
-  );
-}
-
 function paginateProblems(problems, page, pageSize) {
   const normalizedPageSize = PROBLEM_PAGE_SIZE_OPTIONS.includes(Number(pageSize))
     ? Number(pageSize)
@@ -185,21 +127,18 @@ function paginateProblems(problems, page, pageSize) {
   };
 }
 
+// 난이도·해결 상태는 서버에서 거르고, 추가 검색·정렬은 받은 목록에 적용한다.
+// serverCatalog는 문제별 풀이 진행 상태를 합칠 때 사용한다.
 export async function getProblemList(options = {}) {
   const {
-    useServerCatalog = false,
     serverCatalog,
     keyword = "",
     difficultyTier = "",
     tierMinIndex = "0",
-    tierMaxIndex = "29",
+    tierMaxIndex = String(tierRankOptions.length - 1),
     selectedTags = [],
     tagMode = "OR",
     status = "all",
-    solvedMin = "",
-    solvedMax = "",
-    averageMin = "",
-    averageMax = "",
     problemSetId = "",
     sortKey = "id",
     sortDirection = "asc",
@@ -207,146 +146,60 @@ export async function getProblemList(options = {}) {
     pageSize = DEFAULT_PROBLEM_PAGE_SIZE,
   } = options;
 
-  const useServer = useServerCatalog || Boolean(problemSetId);
-  let userProblems = useServer
-    ? (serverCatalog ?? await getWorkbookCatalogWithProgress())
-    : getUserProblems();
+  let problems = serverCatalog ?? await getWorkbookCatalogWithProgress();
 
-  if (useServer) {
-    const query = new URLSearchParams({ size: String(pageSize), page: String(page - 1) });
-    if (difficultyTier) query.set("difficultyTier", difficultyTier);
-    query.set("solveStatus", { solved: "SOLVED", unsolved: "UNSOLVED" }[status] ?? "ALL");
-    const simplePage = !keyword.trim() && selectedTags.length === 0 && !problemSetId
-      && sortKey === "id" && sortDirection === "desc";
-    const progress = new Map(userProblems.map((problem) => [Number(problem.id), problem]));
-    const withProgress = (problem) => ({ ...toWorkbookProblem(problem),
-      solved: status === "solved" || (status !== "unsolved" && Boolean(progress.get(Number(problem.id))?.solved)),
-      attempted: Boolean(progress.get(Number(problem.id))?.attempted),
-    });
-    if (simplePage) {
-      let result = await request(`/api/problems?${query}`);
-      if (result.totalPages > 0 && result.page >= result.totalPages) {
-        query.set("page", String(result.totalPages - 1));
-        result = await request(`/api/problems?${query}`);
-      }
-      const currentPage = result.page + 1;
-      return {
-        items: result.content.map(withProgress), totalCount: result.totalElements,
-        currentPage, pageSize: result.size, totalPages: Math.max(1, result.totalPages),
-        startIndex: result.totalElements ? result.page * result.size + 1 : 0,
-        endIndex: Math.min(currentPage * result.size, result.totalElements),
-        hasPreviousPage: result.page > 0, hasNextPage: currentPage < result.totalPages,
-      };
-    }
-    // 기존 복수 태그·키워드·정렬은 서버에서 필터링한 목록에 적용한다.
-    userProblems = [];
-    query.set("size", "100");
-    let index = 0;
-    let result;
-    do {
-      query.set("page", String(index++));
+  const query = new URLSearchParams({ size: String(pageSize), page: String(page - 1) });
+  if (difficultyTier) query.set("difficultyTier", difficultyTier);
+  query.set("solveStatus", { solved: "SOLVED", unsolved: "UNSOLVED" }[status] ?? "ALL");
+  const simplePage = !keyword.trim() && selectedTags.length === 0 && !problemSetId
+    && sortKey === "id" && sortDirection === "desc";
+  const progress = new Map(problems.map((problem) => [Number(problem.id), problem]));
+  const withProgress = (problem) => ({ ...toWorkbookProblem(problem),
+    solved: status === "solved" || (status !== "unsolved" && Boolean(progress.get(Number(problem.id))?.solved)),
+    attempted: Boolean(progress.get(Number(problem.id))?.attempted),
+  });
+  if (simplePage) {
+    let result = await request(`/api/problems?${query}`);
+    if (result.totalPages > 0 && result.page >= result.totalPages) {
+      query.set("page", String(result.totalPages - 1));
       result = await request(`/api/problems?${query}`);
-      userProblems.push(...result.content.map(withProgress));
-    } while (index < result.totalPages);
+    }
+    const currentPage = result.page + 1;
+    return {
+      items: result.content.map(withProgress), totalCount: result.totalElements,
+      currentPage, pageSize: result.size, totalPages: Math.max(1, result.totalPages),
+      startIndex: result.totalElements ? result.page * result.size + 1 : 0,
+      endIndex: Math.min(currentPage * result.size, result.totalElements),
+      hasPreviousPage: result.page > 0, hasNextPage: currentPage < result.totalPages,
+    };
   }
-  const problemSetFilter = await getProblemSetFilter(problemSetId, userProblems);
+  // 기존 복수 태그·키워드·정렬은 서버에서 필터링한 목록에 적용한다.
+  problems = [];
+  query.set("size", "100");
+  let index = 0;
+  let result;
+  do {
+    query.set("page", String(index++));
+    result = await request(`/api/problems?${query}`);
+    problems.push(...result.content.map(withProgress));
+  } while (index < result.totalPages);
+  const problemSetFilter = await getProblemSetFilter(problemSetId, problems);
 
-  const filteredProblems = userProblems.filter((problem) => {
+  const filteredProblems = problems.filter((problem) => {
     const tierIndex = getTierRankIndex(problem.tier);
     const tierAllowed =
       tierIndex >= Number(tierMinIndex) && tierIndex <= Number(tierMaxIndex);
 
     return (
       tierAllowed &&
-      (useServer || !difficultyTier || problem.tier.toUpperCase().split(" ")[0] === difficultyTier) &&
       (!problemSetFilter || problemSetFilter.has(Number(problem.id))) &&
       matchesKeyword(problem, keyword) &&
       matchesTags(problem, selectedTags, tagMode) &&
-      matchesStatus(problem, status) &&
-      (useServer || (matchesRange(problem.solvedCount, solvedMin, solvedMax) &&
-        matchesRange(problem.averageTries, averageMin, averageMax)))
+      matchesStatus(problem, status)
     );
   });
 
   const sortedProblems = sortProblems(filteredProblems, sortKey, sortDirection);
 
   return paginateProblems(sortedProblems, page, pageSize);
-}
-
-export async function getProblemById(id) {
-  const problem = mockProblems.find((item) => item.id === Number(id));
-
-  if (!problem) {
-    return undefined;
-  }
-
-  const userProblem = applyUserProblemStatus(problem, getUserProblemStats());
-
-  return {
-    ...userProblem,
-    detail: createProblemDetail(userProblem),
-  };
-}
-
-export async function getProblemCatalog() {
-  return getUserProblems();
-}
-
-export async function getProblemTags(useServerCatalog = false) {
-  const problems = useServerCatalog ? await getWorkbookProblemCatalog() : mockProblems;
-  const tags = problems.flatMap((problem) => problem.tags);
-  return [...new Set(tags)].sort((a, b) => a.localeCompare(b));
-}
-
-export async function getProblemOptions() {
-  return mockProblems
-    .map((problem) => ({
-      id: problem.id,
-      title: problem.title,
-      tier: problem.tier,
-    }))
-    .sort((left, right) => left.id - right.id);
-}
-
-function createProblemDetail(problem) {
-  const tagText = problem.tags.join(", ");
-
-  return {
-    summary: `${problem.title} 문제는 ${tagText} 역량을 확인하기 위한 ${problem.tier} 난이도의 알고리즘 문제입니다.`,
-    description: [
-      `주어진 입력을 분석하여 ${problem.title}에 맞는 결과를 출력하세요.`,
-      "문제의 조건을 만족하는 풀이를 작성해야 하며, 동일한 입력에 대해서는 항상 같은 정답을 반환해야 합니다.",
-      "입력 크기와 경계값을 고려하여 평균 시도 횟수를 낮출 수 있는 풀이를 설계해 보세요.",
-    ],
-    constraints: [
-      "모든 입력은 문제에서 정의한 형식을 따릅니다.",
-      "출력은 정답 형식과 정확히 일치해야 합니다.",
-      "제한 시간 안에 모든 테스트 케이스를 통과해야 합니다.",
-    ],
-    examples: [
-      {
-        title: "예제 1",
-        input: problem.id === 1000 || problem.id === 1001 ? "3 5" : "sample input 1",
-        output:
-          problem.id === 1000 ? "8" : problem.id === 1001 ? "-2" : "sample output 1",
-        explanation:
-          problem.id === 1000
-            ? "3과 5를 더한 값인 8을 출력합니다."
-            : problem.id === 1001
-              ? "3에서 5를 뺀 값인 -2를 출력합니다."
-            : `${problem.title}의 기본 조건을 만족하는 예시입니다.`,
-      },
-      {
-        title: "예제 2",
-        input: problem.id === 1000 ? "1 2" : problem.id === 1001 ? "9 4" : "sample input 2",
-        output: problem.id === 1000 ? "3" : problem.id === 1001 ? "5" : "sample output 2",
-        explanation:
-          problem.id === 1000
-            ? "1과 2를 더한 값인 3을 출력합니다."
-            : problem.id === 1001
-            ? "9에서 4를 뺀 값인 5를 출력합니다."
-            : "다른 입력에서도 같은 규칙을 적용합니다.",
-      },
-    ],
-  };
 }

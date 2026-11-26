@@ -24,6 +24,7 @@ function CommunityPostDetailPage() {
   const { id } = useParams();
   const [post, setPost] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
   const [activeSnippet, setActiveSnippet] = useState(null);
 
   useEffect(() => {
@@ -31,11 +32,23 @@ function CommunityPostDetailPage() {
 
     async function fetchPost() {
       setIsLoading(true);
-      const nextPost = await getBoardPostById(id);
+      setHasError(false);
 
-      if (!ignore) {
-        setPost(nextPost ?? null);
-        setIsLoading(false);
+      try {
+        const nextPost = await getBoardPostById(id);
+
+        if (!ignore) {
+          setPost(nextPost ?? null);
+        }
+      } catch {
+        if (!ignore) {
+          setPost(null);
+          setHasError(true);
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
     }
 
@@ -53,7 +66,11 @@ function CommunityPostDetailPage() {
   if (!post) {
     return (
       <main className="community-post-state">
-        <p>게시글을 찾을 수 없습니다.</p>
+        <p>
+          {hasError
+            ? "게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요."
+            : "게시글을 찾을 수 없습니다."}
+        </p>
         <Link to="/community">커뮤니티로 돌아가기</Link>
       </main>
     );

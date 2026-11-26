@@ -150,6 +150,21 @@
   font-size: var(--font-size-caption);
 }
 
+.leaderboard-error {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  color: var(--color-error);
+  font-size: var(--font-size-caption);
+}
+
+.leaderboard-error p {
+  margin: 0;
+}
+
 .leaderboard-filter .range-inputs input {
   font-variant-numeric: tabular-nums;
 }

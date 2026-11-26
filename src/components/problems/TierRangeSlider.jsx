@@ -1,5 +1,5 @@
 import TierBadge from "./TierBadge";
-import { MASTER_TIER, tierGroups, tierRankOptions } from "./problemListConfig";
+import { tierRankOptions } from "./problemListConfig";
 
 const tierMarkerLabels = {
   Bronze: "브론즈",
@@ -11,57 +11,52 @@ const tierMarkerLabels = {
   Master: "마스터",
 };
 
-const tierMarkerTiers = [
-  ...tierGroups.map((tierGroup) => `${tierGroup} 5`),
-  MASTER_TIER,
-];
+// 목록에 있는 티어 묶음(브론즈, 실버 …)마다 바로가기 표시를 만든다.
+// 묶음 범위는 목록에서 그 묶음이 처음·마지막으로 나오는 위치다. 이름표가 없는 묶음(루비, 미지정)은 만들지 않는다
+function buildTierMarkers(options) {
+  const groups = [];
 
-function getTierGroupRange(tier) {
-  if (tier === MASTER_TIER) {
-    const masterIndex = tierRankOptions.indexOf(MASTER_TIER);
+  options.forEach((tier) => {
+    const [tierGroup] = tier.split(" ");
+
+    if (tierMarkerLabels[tierGroup] && !groups.includes(tierGroup)) {
+      groups.push(tierGroup);
+    }
+  });
+
+  return groups.map((tierGroup, markerIndex) => {
+    const groupTiers = options.filter((tier) => tier.split(" ")[0] === tierGroup);
 
     return {
-      startIndex: masterIndex,
-      endIndex: masterIndex,
+      positionPercent: (markerIndex / Math.max(groups.length - 1, 1)) * 100,
+      tier: groupTiers[0],
+      label: tierMarkerLabels[tierGroup],
+      startIndex: options.indexOf(groupTiers[0]),
+      endIndex: options.indexOf(groupTiers[groupTiers.length - 1]),
     };
+  });
+}
+
+// options: 고를 수 있는 티어 목록. 리더보드는 회원 티어(Bronze 3 ~ Diamond 1)만 넘긴다
+function TierRangeSlider({ filters, updateFilter, options = tierRankOptions }) {
+  const lastIndex = options.length - 1;
+  const tierMarkers = buildTierMarkers(options);
+
+  function clampIndex(value) {
+    return Math.round(Math.min(Math.max(Number(value), 0), lastIndex));
   }
 
-  const [tierGroup] = tier.split(" ");
+  function getIndexFromClientX(clientX, sliderElement) {
+    const rect = sliderElement.getBoundingClientRect();
+    const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
 
-  return {
-    startIndex: tierRankOptions.indexOf(`${tierGroup} 5`),
-    endIndex: tierRankOptions.indexOf(`${tierGroup} 1`),
-  };
-}
+    return clampIndex(percent * lastIndex);
+  }
 
-const tierMarkers = tierMarkerTiers.map((tier, markerIndex) => {
-  const [tierGroup] = tier.split(" ");
-  const range = getTierGroupRange(tier);
-
-  return {
-    positionPercent: (markerIndex / (tierMarkerTiers.length - 1)) * 100,
-    tier,
-    label: tierMarkerLabels[tierGroup] ?? tierGroup,
-    ...range,
-  };
-});
-
-function clampIndex(value) {
-  return Math.round(Math.min(Math.max(Number(value), 0), tierRankOptions.length - 1));
-}
-
-function getIndexFromClientX(clientX, sliderElement) {
-  const rect = sliderElement.getBoundingClientRect();
-  const percent = Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1);
-
-  return clampIndex(percent * (tierRankOptions.length - 1));
-}
-
-function TierRangeSlider({ filters, updateFilter }) {
   const minValue = clampIndex(filters.tierMinIndex);
   const maxValue = clampIndex(filters.tierMaxIndex);
-  const minPercent = (minValue / (tierRankOptions.length - 1)) * 100;
-  const maxPercent = (maxValue / (tierRankOptions.length - 1)) * 100;
+  const minPercent = (minValue / lastIndex) * 100;
+  const maxPercent = (maxValue / lastIndex) * 100;
 
   function updateMin(value) {
     updateFilter("tierMinIndex", String(Math.min(clampIndex(value), maxValue)));
@@ -121,7 +116,7 @@ function TierRangeSlider({ filters, updateFilter }) {
   }
 
   function selectTierGroup(marker) {
-    const isFullRange = minValue === 0 && maxValue === tierRankOptions.length - 1;
+    const isFullRange = minValue === 0 && maxValue === lastIndex;
     const isIncluded =
       marker.startIndex >= minValue && marker.endIndex <= maxValue;
 
@@ -139,8 +134,8 @@ function TierRangeSlider({ filters, updateFilter }) {
   return (
     <div className="range-control tier-range-control">
       <div className="range-control__values">
-        <span>{tierRankOptions[minValue]}</span>
-        <span>{tierRankOptions[maxValue]}</span>
+        <span>{options[minValue]}</span>
+        <span>{options[maxValue]}</span>
       </div>
 
       <div
@@ -177,7 +172,7 @@ function TierRangeSlider({ filters, updateFilter }) {
         <input
           type="range"
           min="0"
-          max={tierRankOptions.length - 1}
+          max={lastIndex}
           step="1"
           value={minValue}
           aria-label="최소 티어"
@@ -186,7 +181,7 @@ function TierRangeSlider({ filters, updateFilter }) {
         <input
           type="range"
           min="0"
-          max={tierRankOptions.length - 1}
+          max={lastIndex}
           step="1"
           value={maxValue}
           aria-label="최대 티어"
@@ -225,7 +220,7 @@ function TierRangeSlider({ filters, updateFilter }) {
             aria-label="최소 티어"
             onChange={(event) => updateMin(event.target.value)}
           >
-            {tierRankOptions.map((tier, index) => (
+            {options.map((tier, index) => (
               <option value={index} key={tier}>
                 {tier}
               </option>
@@ -240,7 +235,7 @@ function TierRangeSlider({ filters, updateFilter }) {
             aria-label="최대 티어"
             onChange={(event) => updateMax(event.target.value)}
           >
-            {tierRankOptions.map((tier, index) => (
+            {options.map((tier, index) => (
               <option value={index} key={tier}>
                 {tier}
               </option>

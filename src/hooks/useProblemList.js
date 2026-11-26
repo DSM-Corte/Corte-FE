@@ -88,7 +88,6 @@ function useProblemList() {
       try {
         const data = await getProblemList({
           ...filters,
-          useServerCatalog: true,
           serverCatalog: catalog,
           sortKey,
           sortDirection,
