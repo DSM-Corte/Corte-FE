@@ -1,3 +1,5 @@
+import { getMyTier } from "../api/UserApi";
+import { toScreenTier } from "../api/LeaderboardApi";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { getAuthToken, getCurrentUser } from "../api/AuthApi";
@@ -178,6 +180,16 @@ function buildStats(grass) {
 }
 
 function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
+  const [personal, setPersonal] = useState({});
+  useEffect(() => {
+    if (!getAuthToken()) return;
+    let ignore = false;
+    getMyTier()
+      .then((value) => { if (!ignore) setPersonal({ value }); })
+      .catch(() => { if (!ignore) setPersonal({ error: true }); });
+    return () => { ignore = true; };
+  }, []);
+
   const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [grass, setGrass] = useState([]);
@@ -269,6 +281,8 @@ function MyPage({ theme, accent, onChangeTheme, onChangeAccent }) {
       <section className="mypage__hero">
         <p className="mypage__eyebrow">My Page</p>
         <h1>{user.name}님</h1>
+        {personal.value && <p>내 티어 {toScreenTier(personal.value.tier)} · {personal.value.score.toLocaleString()}점</p>}
+        {personal.error && <p role="status">개인 정보를 불러오지 못했습니다.</p>}
         <p>{user.email}</p>
       </section>
 

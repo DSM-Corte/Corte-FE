@@ -16,6 +16,10 @@ export async function updateMyTheme(change) {
   return request("/api/users/me/theme", { method: "PATCH", body: change });
 }
 
+export function getMyTier() {
+  return request("/api/users/me/tier");
+}
+
 export function getMyStats() {
   return request("/api/users/me/stats");
 }

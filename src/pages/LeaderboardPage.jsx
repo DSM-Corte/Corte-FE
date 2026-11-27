@@ -1,3 +1,5 @@
+import { getMyRank } from "../api/LeaderboardApi";
+import { isAuthenticated } from "../api/AuthApi";
 import { useEffect, useState } from "react";
 import {
   createDefaultLeaderboardFilters,
@@ -14,6 +16,16 @@ import "./ProblemListPage.css";
 import "./LeaderboardPage.css";
 
 function LeaderboardPage() {
+  const [personal, setPersonal] = useState({});
+  useEffect(() => {
+    if (!isAuthenticated()) return;
+    let ignore = false;
+    getMyRank()
+      .then((value) => { if (!ignore) setPersonal({ value }); })
+      .catch(() => { if (!ignore) setPersonal({ error: true }); });
+    return () => { ignore = true; };
+  }, []);
+
   const [filters, setFilters] = useState(() => createDefaultLeaderboardFilters());
   const [searchInput, setSearchInput] = useState("");
   const [sortKey, setSortKey] = useState("rank");
@@ -150,6 +162,8 @@ function LeaderboardPage() {
         <div className="leaderboard-header">
           <p className="leaderboard-header__eyebrow">Leaderboard</p>
           <h1>리더보드</h1>
+        {personal.value && <p>내 전체 순위 {personal.value.rank.toLocaleString()}위</p>}
+        {personal.error && <p role="status">개인 정보를 불러오지 못했습니다.</p>}
           <p>
             정답 문제 수와 점수를 기준으로 유저 순위를 확인하고, 티어와 문제 수로
             필요한 구간만 빠르게 좁혀볼 수 있습니다.
