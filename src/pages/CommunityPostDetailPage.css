@@ -87,6 +87,47 @@
   font-weight: var(--font-weight-bold);
 }
 
+.community-post-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-top: var(--space-md);
+}
+
+.community-post-actions a,
+.community-post-actions button {
+  padding: 6px 14px;
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.community-post-actions button {
+  color: var(--color-error);
+}
+
+.community-post-actions a:focus-visible,
+.community-post-actions button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+.community-post-actions button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.community-post-action-message {
+  margin-top: var(--space-sm);
+  color: var(--color-error);
+  font-size: var(--font-size-caption);
+  font-weight: var(--font-weight-semibold);
+}
+
 .community-post-body {
   width: min(100% - 48px, 980px);
   margin: 0 auto;
