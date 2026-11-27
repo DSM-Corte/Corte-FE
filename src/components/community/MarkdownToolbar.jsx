@@ -29,6 +29,7 @@ function MarkdownToolbar({
   onSubmit,
   onUploadImage,
   isSaving,
+  submitLabel = "제출하기",
 }) {
   return (
     <div className="board-editor-toolbar" aria-label="마크다운 편집 도구">
@@ -82,7 +83,7 @@ function MarkdownToolbar({
           onClick={onSubmit}
           className="board-editor-submit"
         >
-          제출하기
+          {submitLabel}
         </Button>
       </div>
     </div>

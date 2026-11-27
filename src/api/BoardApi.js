@@ -21,6 +21,8 @@ function toPost(response) {
     title: response.title,
     markdown: response.content ?? "",
     authorName: response.author,
+    // 작성자 ID는 본인 글 판별용이다. 서버가 아직 주지 않으면 undefined다
+    authorId: response.authorId,
     type: "general",
     relatedProblem: undefined,
     createdAt: response.createdAt,

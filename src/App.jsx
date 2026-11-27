@@ -142,6 +142,14 @@ function AppRoutes({ theme, accent, onToggleTheme, onChangeTheme, onChangeAccent
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/community/posts/:id/edit"
+          element={
+            <ProtectedRoute message="게시글을 수정하려면 먼저 로그인해주세요.">
+              <CommunityWritePage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/leaderboard" element={<LeaderboardPage />} />
         <Route
           path="/mypage"

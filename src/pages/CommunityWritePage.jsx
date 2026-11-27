@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
-import { BOARD_POST_TYPES, createBoardPost } from "../api/BoardApi";
+import { Link, useNavigate, useParams } from "react-router";
+import { getCurrentUserId } from "../api/AuthApi";
+import {
+  BOARD_POST_TYPES,
+  createBoardPost,
+  getBoardPostById,
+  updateBoardPost,
+} from "../api/BoardApi";
 import { getProblemList } from "../api/ProblemApi";
 import CodeRunModal from "../components/community/CodeRunModal";
 import MarkdownPreview from "../components/community/MarkdownPreview";
 import MarkdownToolbar from "../components/community/MarkdownToolbar";
+import "./CommunityPostDetailPage.css";
 import "./CommunityWritePage.css";
 
 const IMAGE_UPLOAD_MAX_BYTES = 3 * 1024 * 1024;
@@ -105,27 +112,83 @@ function getInsertion(type, selectedText) {
   return insertionMap[type] ?? { value: text, selectStart: 0, selectLength: 0 };
 }
 
+const EDIT_ERROR_MESSAGES = {
+  B001: "게시글을 찾을 수 없습니다.",
+  B002: "게시글 작성자만 수정할 수 있습니다.",
+};
+
 function CommunityWritePage() {
   const navigate = useNavigate();
+  const { id: editingPostId } = useParams();
+  const isEditing = Boolean(editingPostId);
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
   const historyRef = useRef({
     past: [],
     future: [],
   });
-  const [title, setTitle] = useState("코드 리뷰 게시글 작성");
+  const [title, setTitle] = useState(isEditing ? "" : "코드 리뷰 게시글 작성");
   const [postType, setPostType] = useState("general");
   const [relatedProblemId, setRelatedProblemId] = useState("");
   const [relatedProblem, setRelatedProblem] = useState(null);
   const [problemKeyword, setProblemKeyword] = useState("");
   const [problemResults, setProblemResults] = useState([]);
   const [isSearchingProblems, setIsSearchingProblems] = useState(false);
-  const [markdown, setMarkdown] = useState(starterMarkdown);
+  const [markdown, setMarkdown] = useState(isEditing ? "" : starterMarkdown);
   const [viewMode, setViewMode] = useState("editor");
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingPost, setIsLoadingPost] = useState(isEditing);
+  const [loadError, setLoadError] = useState("");
   const [activeSnippet, setActiveSnippet] = useState(null);
   const isProblemPostType = postType === "problem";
+
+  useEffect(() => {
+    if (!editingPostId) {
+      return;
+    }
+
+    let ignore = false;
+
+    async function fetchPost() {
+      setIsLoadingPost(true);
+      setLoadError("");
+
+      try {
+        const post = await getBoardPostById(editingPostId);
+
+        if (ignore) {
+          return;
+        }
+
+        if (!post) {
+          setLoadError("게시글을 찾을 수 없습니다.");
+        } else if (
+          post.authorId !== undefined &&
+          String(post.authorId) !== String(getCurrentUserId())
+        ) {
+          setLoadError("게시글 작성자만 수정할 수 있습니다.");
+        } else {
+          setTitle(post.title);
+          setMarkdown(post.markdown);
+        }
+      } catch {
+        if (!ignore) {
+          setLoadError("게시글을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingPost(false);
+        }
+      }
+    }
+
+    fetchPost();
+
+    return () => {
+      ignore = true;
+    };
+  }, [editingPostId]);
 
   useEffect(() => {
     if (!isProblemPostType) {
@@ -389,25 +452,44 @@ function CommunityWritePage() {
     setMessage("");
 
     try {
-      const post = await createBoardPost({
-        title,
-        markdown,
-        relatedProblemId: isProblemPostType ? relatedProblemId : "",
-        type: postType,
-      });
+      const post = isEditing
+        ? await updateBoardPost(editingPostId, { title, markdown })
+        : await createBoardPost({
+            title,
+            markdown,
+            relatedProblemId: isProblemPostType ? relatedProblemId : "",
+            type: postType,
+          });
       navigate(`/community/posts/${post.id}`);
     } catch (error) {
-      setMessage(error.message);
+      setMessage(
+        (isEditing && EDIT_ERROR_MESSAGES[error.code]) || error.message,
+      );
     } finally {
       setIsSaving(false);
     }
+  }
+
+  if (isLoadingPost) {
+    return <main className="community-post-state">게시글을 불러오는 중입니다.</main>;
+  }
+
+  if (loadError) {
+    return (
+      <main className="community-post-state">
+        <p>{loadError}</p>
+        <Link to={isEditing ? `/community/posts/${editingPostId}` : "/community"}>
+          돌아가기
+        </Link>
+      </main>
+    );
   }
 
   return (
     <main className="community-write-page">
       <section className="community-write-hero">
         <p className="community-write-hero__eyebrow">Community Editor</p>
-        <h1>게시글 작성</h1>
+        <h1>{isEditing ? "게시글 수정" : "게시글 작성"}</h1>
         <p>
           마크다운으로 풀이 과정을 남기고, 실행 가능한 코드블록은 미리보기에서
           바로 확인할 수 있습니다.
@@ -424,6 +506,7 @@ function CommunityWritePage() {
           />
         </label>
 
+        {!isEditing && (
         <div className="community-write-meta-fields">
           <label>
             <span>글 종류</span>
@@ -497,6 +580,7 @@ function CommunityWritePage() {
             </div>
           )}
         </div>
+        )}
 
         <MarkdownToolbar
           viewMode={viewMode}
@@ -505,6 +589,7 @@ function CommunityWritePage() {
           onUploadImage={handleUploadImageClick}
           onSubmit={handleSubmit}
           isSaving={isSaving}
+          submitLabel={isEditing ? "수정하기" : "제출하기"}
         />
 
         <input
