@@ -36,7 +36,7 @@ function toServerTier(tier) {
 }
 
 // "GOLD_3" → "Gold 3"
-function toScreenTier(serverTier) {
+export function toScreenTier(serverTier) {
   const [group, grade] = String(serverTier).split("_");
   const name = group.charAt(0) + group.slice(1).toLowerCase();
 
@@ -115,6 +115,10 @@ function toPagination(response) {
 }
 
 // options: 화면 필터({ keyword, tierMinIndex, ... }) + sortKey, sortDirection, page(1부터), pageSize
+export function getMyRank() {
+  return request("/api/leaderboard/me");
+}
+
 export async function getLeaderboard(options) {
   const path = `/api/leaderboard?${buildQuery(options)}`;
 
